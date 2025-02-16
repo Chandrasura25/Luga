@@ -100,7 +100,7 @@ class Text(BaseModel):
 
 class TextCreate(BaseModel):
     prompt: str
-
+    user_email: str
 class TextResponse(BaseModel):
     prompt: str
     response: str
