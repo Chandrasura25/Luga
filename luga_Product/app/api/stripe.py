@@ -65,40 +65,6 @@ async def get_subscription_status(request: Request):
     else:
         raise HTTPException(status_code=403, detail="Subscription is not active")
 
-# @router.post("/stripe-webhook")
-# async def stripe_webhook(request: Request):
-#     payload = await request.body()
-#     sig_header = request.headers.get("stripe-signature")
-
-#     try:
-#         event = stripe.Webhook.construct_event(
-#             payload, sig_header, 
-#         )
-#     except ValueError as e:
-#         raise HTTPException(status_code=400, detail="Invalid Payload")
-#     except stripe.error.SignatureVerificationError as e :
-#         raise HTTPException(status_code=400, detail="Invalid Signature")
-    
-#     if event["type"] == "checkout.session.completed":
-#         subscription = event["data"]["object"] 
-#         user_email = subscription["customer_email"]
-#         status = subscription["status"]
-#         price_id = subscription["metadata"]["priceId"]
-        
-#         duration_map = {
-#             "price_1_month": timedelta(days=30),
-#             "price_1_year": timedelta(days=365)
-#         }
-#         duration = duration_map.get(price_id, timedelta(days=30))
-#         user = await database.find_user_by_email(user_email)
-#         if user:
-#              #get current expire_date
-#             current_expire_date = user.get("expire_date", datetime.now(timezone.utc)) if user else datetime.now(timezone.utc)
-
-#             new_expire_date = max(datetime.now(timezone.utc), current_expire_date) + duration
-#             result = await database.update_status(user_email, status, new_expire_date)
-#     return {"status":"Success"}
-
 @router.post("/subs")
 async def create_subscription_session(subs_request: SubscriptionRequest):
     email = subs_request.email
@@ -135,13 +101,3 @@ async def get_subscription_plans():
     except Exception as e:
         print(str(e))
         raise HTTPException(status_code=400, detail=str(e))
-# @router.get("/verify-payment")
-# async def verify_payment(session_id: str):
-#     try:
-#         session = stripe.checkout.Session.retrieve(session_id)
-#         if session.payment_status == "paid":
-#             return {"status": "success", "email": session.customer_email}
-#         else:
-#             return {"status": "pending"}
-#     except Exception as e:
-#         return {"status": "error", "message": str(e)}
