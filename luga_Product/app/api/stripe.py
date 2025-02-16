@@ -30,8 +30,6 @@ async def stripe_webhook(request: Request):
         session = event["data"]["object"]
         user_email = session["customer_email"]
         name = session["metadata"]["name"]
-        price_id = session["metadata"]["priceId"]
-        print(name)
         # Define quota based on the plan
         quota_map = {
             "Test Leap": {"audio_quota": 300},  # 5 minutes in seconds
@@ -42,14 +40,10 @@ async def stripe_webhook(request: Request):
         }
         
         quota = quota_map.get(name, {})
-        print(quota)
         
         user = await database.find_user_by_email(user_email)
         if user:
-            await database.db.users.update_one(
-                {"email": user_email},
-                {"$set": {"subscription_status": "active", **quota}}
-            )
+            await database.update_status(user_email, "active", quota)
     
     return {"status": "Success"}
 # @router.post("/stripe-webhook")
