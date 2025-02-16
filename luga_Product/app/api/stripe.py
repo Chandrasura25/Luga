@@ -43,9 +43,28 @@ async def stripe_webhook(request: Request):
         
         user = await database.find_user_by_email(user_email)
         if user:
-            await database.update_status(user_email, "active", quota)
+            await database.update_status(user_email, "active", quota, name)
     
     return {"status": "Success"}
+
+@router.post("/subscription_status")
+async def get_subscription_status(request: Request):
+    payload = await request.json()
+    email = payload.get("email")  # Use .get() to avoid KeyError
+
+    if not email:
+        raise HTTPException(status_code=400, detail="Email is required")
+
+    user = await database.find_user_by_email(email)
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if user.get("subscription_status") == "active":
+        return {"subscription_plan": user.get("subscription_plan", "unknown")}
+    else:
+        raise HTTPException(status_code=403, detail="Subscription is not active")
+
 # @router.post("/stripe-webhook")
 # async def stripe_webhook(request: Request):
 #     payload = await request.body()
