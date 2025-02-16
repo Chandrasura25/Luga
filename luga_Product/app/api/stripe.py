@@ -10,6 +10,7 @@ from app.core.config import Config
 router = APIRouter()
 stripe.api_key = Config.STRIPE_API_KEY
 frontend_url = Config.FRONTEND_URL
+stripe_webhook_secret = Config.STRIPE_WEBHOOK_SECRET
 
 @router.post("/stripe-webhook")
 async def stripe_webhook(request: Request):
@@ -18,7 +19,7 @@ async def stripe_webhook(request: Request):
 
     try:
         event = stripe.Webhook.construct_event(
-            payload, sig_header, Config.STRIPE_WEBHOOK_SECRET
+            payload, sig_header, stripe_webhook_secret
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail="Invalid Payload")
@@ -26,12 +27,11 @@ async def stripe_webhook(request: Request):
         raise HTTPException(status_code=400, detail="Invalid Signature")
     
     if event["type"] == "checkout.session.completed":
-        print(event)
         session = event["data"]["object"]
         user_email = session["customer_email"]
-        name = session["name"]
+        name = session["metadata"]["name"]
         price_id = session["metadata"]["priceId"]
-        
+        print(name)
         # Define quota based on the plan
         quota_map = {
             "Test Leap": {"audio_quota": 300},  # 5 minutes in seconds
@@ -42,6 +42,7 @@ async def stripe_webhook(request: Request):
         }
         
         quota = quota_map.get(name, {})
+        print(quota)
         
         user = await database.find_user_by_email(user_email)
         if user:
@@ -88,6 +89,7 @@ async def stripe_webhook(request: Request):
 @router.post("/subs")
 async def create_subscription_session(subs_request: SubscriptionRequest):
     email = subs_request.email
+    name = subs_request.name
     price = subs_request.priceId
     try:
         
@@ -102,7 +104,7 @@ async def create_subscription_session(subs_request: SubscriptionRequest):
             success_url="http://localhost:5173/success?session_id={CHECKOUT_SESSION_ID}",
             cancel_url="http://localhost:5173/cancel",
             customer_email=email,
-            metadata={"priceId": price, "email": email}
+            metadata={"name": name, "email": email}
         )
         return {"session_id": session.id}
     except Exception as e:
