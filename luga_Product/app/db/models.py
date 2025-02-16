@@ -6,6 +6,7 @@ from app.db.database import database
 
 class SubscriptionRequest(BaseModel):
     email: str
+    name: str
     priceId: str
   
 
