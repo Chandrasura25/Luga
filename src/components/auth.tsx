@@ -5,12 +5,15 @@ import React, {
   ReactNode,
   useEffect,
 } from "react";
+import { jwtDecode } from "jwt-decode";
+import { toast } from "react-toastify";
 
 // Define the type for the context's value
 interface AuthContextType {
   token: string | null;
   login: (newToken: string) => void;
   logout: () => void;
+  getUserEmail: () => string | null;
 }
 
 // Create the context with `null` as the default value
@@ -41,6 +44,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, []);
 
+  const getUserEmail = (): string | null => {
+    const token = localStorage.getItem("access_token");
+    if (!token) {
+      toast.error("You must be logged in to subscribe.");
+      return null;
+    }
+
+    try {
+      const decoded: { sub: string } = jwtDecode(token);
+      return decoded.sub;
+    } catch (err) {
+      console.error("Invalid token:", err);
+      return null;
+    }
+  };
+
   const login = (newToken: string) => {
     localStorage.setItem("access_token", newToken); // Store the token in localStorage
     setToken(newToken); // Set the token in context
@@ -52,7 +71,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ token, login, logout }}>
+    <AuthContext.Provider value={{ token, login, logout, getUserEmail }}>
       {children}
     </AuthContext.Provider>
   );
