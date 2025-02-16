@@ -12,17 +12,18 @@ import {
 } from "lucide-react";
 import TextAudio from "./TextAudio";
 import AudioVideo from "./AudioVideo";
-
+import axios from "../api/axios";
+import { useAuth } from "./auth";
 const ChatbotInterface = () => {
   const [message, setMessage] = useState("");
   const [selectedLevel, setSelectedLevel] = useState("Advanced");
-  const [selectedLanguage, setSelectedLanguage] = useState("French");
+  const [selectedLanguage, setSelectedLanguage] = useState("English");
   const [isLevelOpen, setIsLevelOpen] = useState(false);
   const [isLanguageOpen, setIsLanguageOpen] = useState(false);
   const [activeView, setActiveView] = useState("chat");
-
+  const { getUserEmail } = useAuth();
   const levels = ["Advanced", "Balanced", "Basic"];
-  const languages = ["Arabic", "Spanish", "French", "Chinese"];
+  const languages = ["Arabic", "Spanish", "French", "Chinese", "English"];
 
   const handleLevelSelect = (level) => {
     setSelectedLevel(level);
@@ -68,6 +69,19 @@ const ChatbotInterface = () => {
     "Video Editing Community",
     "Hi Response Summary",
   ];
+  const sendMessage = async () => {
+    try {
+      const userEmail = getUserEmail();
+      const prompt = {
+        prompt: message,
+        user_email: userEmail,
+      };
+      const response = await axios.post("/text/generate", prompt);
+      console.log(response.data);
+    } catch (error) {
+      console.error("Error sending message:", error);
+    }
+  };
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -217,8 +231,8 @@ const ChatbotInterface = () => {
                         current role,&quot; or &quot;handle personal
                         commitments&quot;]. I understand that this might require
                         some adjustment, and I am open to discussing alternative
-                        options or accommodations that would work for both of us.
-                        Thank you for your understanding and flexibility.
+                        options or accommodations that would work for both of
+                        us. Thank you for your understanding and flexibility.
                       </p>
                     </div>
                   </div>
@@ -233,6 +247,11 @@ const ChatbotInterface = () => {
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     placeholder="Message Luga AI"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        sendMessage();
+                      }
+                    }}
                     className="w-full p-4 pr-12 rounded-lg border focus:outline-none focus:border-gray-400"
                   />
                 </div>
