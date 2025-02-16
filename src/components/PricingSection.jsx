@@ -9,14 +9,27 @@ const PricingSection = () => {
   const [loading, setLoading] = useState(false);
   const [processingPlanName, setProcessingPlanName] = useState(null);
   const [plans, setPlans] = useState([]);
+  const [subscriptionStatus, setSubscriptionStatus] = useState(null);
 
   const fetchPlans = async () => {
     const response = await axios.get("/stripe/subscription_plans");
     setPlans(response.data);
   };
-
+  const getSubscriptionStatus = async () => {
+    try {
+      const response = await axios.post("/stripe/subscription_status", {
+        email: getUserEmail(),
+      });
+      setSubscriptionStatus(response.data.subscription_plan);
+    } catch (err) {
+      console.error("Error getting subscription status:", err);
+      return null;
+    }
+  };
+  console.log(subscriptionStatus);
   useEffect(() => {
     fetchPlans();
+    getSubscriptionStatus();
   }, []);
 
   const getUserEmail = () => {
@@ -112,11 +125,20 @@ const PricingSection = () => {
                   </div>
                 </div>
                 <button
-                  className="w-full right-0 py-3 text-center bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
+                  className={`w-full right-0 py-3 text-center rounded-lg transition-colors ${
+                    subscriptionStatus === plan.name
+                      ? "bg-gray-300 text-black cursor-not-allowed"
+                      : "bg-black text-white hover:bg-gray-800"
+                  }`}
                   onClick={() => handleSubscribe(plan.name, plan.prices[0].id)}
-                  disabled={loading && processingPlanName === plan.name}
+                  disabled={
+                    (loading && processingPlanName === plan.name) ||
+                    subscriptionStatus === plan.name
+                  }
                 >
-                  {loading && processingPlanName === plan.name
+                  {subscriptionStatus === plan.name
+                    ? "Subscribed"
+                    : loading && processingPlanName === plan.name
                     ? "Processing..."
                     : "Get started"}
                 </button>
