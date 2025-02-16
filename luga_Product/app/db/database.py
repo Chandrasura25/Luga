@@ -25,10 +25,10 @@ class Database:
         await self.blacklist_collection.insert_one({"token": token, "expire_at": expire_at}) 
         
     #Stripe
-    async def update_status(self, email: str, new_plan: str, new_expire_date: datetime):
+    async def update_status(self, email: str, status: str, quota: dict):
         result = await self.client["luga"]["users"].find_one_and_update(
             {"email": email},
-            {"$set": {"subscription_plan": new_plan, "expire_date": new_expire_date}},
+            {"$set": {"subscription_status": status, "quota": quota}},
             return_document=True,
         )
         if not result:
