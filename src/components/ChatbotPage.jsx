@@ -14,6 +14,7 @@ import TextAudio from "./TextAudio";
 import AudioVideo from "./AudioVideo";
 import axios from "../api/axios";
 import { useAuth } from "./auth";
+import { toast } from "react-toastify";
 const ChatbotInterface = () => {
   const [message, setMessage] = useState("");
   const [selectedLevel, setSelectedLevel] = useState("Advanced");
@@ -79,6 +80,7 @@ const ChatbotInterface = () => {
       const response = await axios.post("/text/generate", prompt);
       console.log(response.data);
     } catch (error) {
+      toast.error( error.response.data.detail);
       console.error("Error sending message:", error);
     }
   };
