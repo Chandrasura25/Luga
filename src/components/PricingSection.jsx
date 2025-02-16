@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import axios from "../api/axios";
-import { jwtDecode } from "jwt-decode";
 import { loadStripe } from "@stripe/stripe-js";
 import { toast } from "react-toastify";
+import { useAuth } from "./auth";
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISH_KEY);
 
 const PricingSection = () => {
@@ -10,7 +10,7 @@ const PricingSection = () => {
   const [processingPlanName, setProcessingPlanName] = useState(null);
   const [plans, setPlans] = useState([]);
   const [subscriptionStatus, setSubscriptionStatus] = useState(null);
-
+  const { getUserEmail } = useAuth();
   const fetchPlans = async () => {
     const response = await axios.get("/stripe/subscription_plans");
     setPlans(response.data);
@@ -26,27 +26,12 @@ const PricingSection = () => {
       return null;
     }
   };
-  console.log(subscriptionStatus);
   useEffect(() => {
     fetchPlans();
     getSubscriptionStatus();
   }, []);
 
-  const getUserEmail = () => {
-    const token = localStorage.getItem("access_token");
-    if (!token) {
-      toast.error("You must be logged in to subscribe.");
-      return null;
-    }
 
-    try {
-      const decoded = jwtDecode(token);
-      return decoded.sub;
-    } catch (err) {
-      console.error("Invalid token:", err);
-      return null;
-    }
-  };
 
   const handleSubscribe = async (priceName, priceId) => {
     const email = getUserEmail();
