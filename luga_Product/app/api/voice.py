@@ -90,7 +90,7 @@ async def upload_voice(
     service: ElevenLabsService = Depends(get_eleven_labs_service)
 ):
     try:
-        if file:
+        if file and file.filename:  # Ensure file is provided and has a name
             if not file.content_type.startswith("audio/"):
                 raise HTTPException(
                     status_code=400, 
@@ -132,7 +132,7 @@ async def upload_voice(
                 message="Voice file uploaded successfully."
             )
 
-        elif voice_id:
+        elif voice_id:  # Check if voice_id is provided when file is not
             if not await service.validate_voice(voice_id):
                 raise HTTPException(status_code=400, detail="Invalid voice ID.")
 
@@ -148,10 +148,11 @@ async def upload_voice(
                 message="Preselected voice set successfully."
             )
 
-        raise HTTPException(
-            status_code=400,
-            detail="Please either upload a voice file or provide a valid voice_id."
-        )
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail="Please either upload a voice file or provide a valid voice_id."
+            )
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
