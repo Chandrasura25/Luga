@@ -157,7 +157,7 @@ const TextAudio = () => {
     const voice = userVoices[index];
     try {
       await axiosPrivate.post("/voice/update-audio-name", {
-        audio_url: voice.audio_url,
+        audio_id: voice.id,
         new_name: newName,
       });
       toast.success("Name updated successfully!");
