@@ -15,6 +15,7 @@ import AudioVideo from "./AudioVideo";
 import axios from "../api/axios";
 import { useAuth } from "./auth";
 import { toast } from "react-toastify";
+import logo from '../assets/logo.jpeg'
 const ChatbotInterface = () => {
   const [message, setMessage] = useState("");
   const [selectedLevel, setSelectedLevel] = useState("Advanced");
@@ -91,7 +92,7 @@ const ChatbotInterface = () => {
       <div className="w-64 border-r flex flex-col bg-white">
         {/* Logo */}
         <div className="p-4 border-b">
-          <span className="text-2xl font-bold">لغة</span>
+          <img src={logo} alt="logo" style={{ height: "50px", width: "auto" }} />
         </div>
 
         {/* Main Navigation */}
