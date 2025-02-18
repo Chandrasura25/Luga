@@ -8,4 +8,7 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
+  :root {
+    --radius: 0.5rem;
+  }
 }
