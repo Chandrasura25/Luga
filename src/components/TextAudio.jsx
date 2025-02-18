@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { Play, Download, CheckCircle } from "lucide-react";
-import axios from "../api/axios";
+import axios, { axiosPrivate } from "../api/axios";
 import { toast } from "react-toastify";
+import { useAuth } from "./auth";
 const TextAudio = () => {
+  const { getUserEmail } = useAuth();
   const [text, setText] = useState("");
   const [voices, setVoices] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -56,7 +58,7 @@ const TextAudio = () => {
       })
       .catch((error) => console.error("Error downloading file:", error));
   };
-
+  const email = getUserEmail();
   const handleGenerateSpeech = async () => {
     if (!text.trim() && !selectedVoice) {
       toast.error("Please enter text and select a voice.");
@@ -70,12 +72,15 @@ const TextAudio = () => {
       toast.error("Please select a voice.");
       return;
     }
+    const request = {
+      text,
+      voice_id: selectedVoice.voice_id,
+      user_email: email,
+    };
     try {
       setIsLoading(true);
-      const response = await axios.post("/voice/text-to-speech", {
-        text,
-        voice_id: selectedVoice.voice_id,
-      });
+      const response = await axiosPrivate.post("/voice/text-to-speech", request);
+      console.log(response);
       const audioUrl = response.data.audio_url;
       const audio = new Audio(audioUrl);
       audioRefs.current.push(audio);
