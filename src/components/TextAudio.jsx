@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Play, Download, Trash2 } from 'lucide-react';
 
 const TextAudio = () => {
