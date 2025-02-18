@@ -4,12 +4,10 @@ from app.services.voice_service import ElevenLabsService
 from app.db.database import database
 from app.db.models import Audio, VoiceUploadResponse, DocumentResponse, TextToSpeechRequest, UserEmailRequest, UpdateAudioNameRequest
 from bson import ObjectId
-from io import StringIO
 import docx
 import PyPDF2
 import os
 from app.services.cloudinary import upload_audio_to_cloudinary
-from fastapi import Query
 from typing import List
 
 router = APIRouter()
@@ -33,36 +31,57 @@ async def text_to_speech(
     service: ElevenLabsService = Depends(get_eleven_labs_service)
 ):
     try:
+        # Fetch user data
         user = await database.find_user_by_email(request.user_email)
-        if not user or user.get("audio_quota", 0) == 0:
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # Check audio quota
+        remaining_quota = user.get("audio_quota", 0)
+        if remaining_quota <= 0:
             raise HTTPException(status_code=403, detail="Insufficient quota, please upgrade your plan")
+
         if not request.text.strip():
             raise HTTPException(status_code=422, detail="Text cannot be empty")
 
         if not request.voice_id:
             raise HTTPException(status_code=422, detail="Voice ID is required")
 
-
+        # Generate audio
         audio_content = service.text_to_speech(request.voice_id, request.text)
         if not audio_content:
             raise HTTPException(status_code=500, detail="Failed to generate audio content")
 
+        # Calculate used quota (assuming 1 second per word for estimation)
+        words = len(request.text.split())
+        estimated_duration = words  # Example: 1 second per word (adjust as needed)
+
+        if estimated_duration > remaining_quota:
+            raise HTTPException(status_code=403, detail="Not enough quota for this request")
+
+        # Deduct used quota
+        new_quota = max(0, remaining_quota - estimated_duration)
+        await database.update_user_quota(user["_id"], new_quota)
+
+        # Upload audio file
         file_name = f"{user['_id']}_{request.voice_id}_{str(ObjectId())}.mp3"
         audio_url = await upload_audio_to_cloudinary(audio_content, "audio_files", file_name)
 
+        # Store audio record
         audio_record = Audio(
-            user_id=str(user["_id"]),  # Convert ObjectId to string
+            user_id=str(user["_id"]),
             voice_id=request.voice_id,
             audio_url=audio_url,
             file_name=file_name
         )
         await database.db.audio.insert_one(audio_record.dict())
+
         return audio_record
 
     except Exception as e:
         print(e)
         raise HTTPException(status_code=500, detail=str(e))
-# update name audio        
+
 @router.post("/update-audio-name", response_model=Audio)
 async def update_audio_name(request: UpdateAudioNameRequest):
     """
