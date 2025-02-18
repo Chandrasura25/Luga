@@ -32,10 +32,11 @@ async def stripe_webhook(request: Request):
         name = session["metadata"]["name"]
         # Define quota based on the plan
         quota_map = {
-            "Test Leap": {"audio_quota": 300},  # 5 minutes in seconds
-            "Demo": {"audio_quota": 300, "video_quota": 300},
-            "Starter": {"text_quota": -1, "audio_quota": 3600, "video_quota": 3600},
-            "Creator": {"text_quota": -1, "audio_quota": 14400, "video_quota": 14400},
+            #convert seconds to minutes
+            "Test Leap": {"audio_quota": 5 * 60},  # 5 minutes in seconds
+            "Demo": {"audio_quota": 5, "video_quota": 5},
+            "Starter": {"text_quota": -1, "audio_quota": 60, "video_quota": 60},
+            "Creator": {"text_quota": -1, "audio_quota": 240, "video_quota": 240},
             "Team": {"text_quota": -1, "audio_quota": 32400, "video_quota": 32400},
         }
         
@@ -80,8 +81,8 @@ async def create_subscription_session(subs_request: SubscriptionRequest):
             }],
             #It's a onetime payment, not subscription
             mode="payment",
-            success_url="http://localhost:5173/success?session_id={CHECKOUT_SESSION_ID}",
-            cancel_url="http://localhost:5173/cancel",
+            success_url="https://www.luga.app/success?session_id={CHECKOUT_SESSION_ID}",
+            cancel_url="https://www.luga.app/cancel",
             customer_email=email,
             metadata={"name": name, "email": email}
         )
