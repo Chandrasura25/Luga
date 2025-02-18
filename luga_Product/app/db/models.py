@@ -9,6 +9,9 @@ class SubscriptionRequest(BaseModel):
     name: str
     priceId: str
   
+class UpdateAudioNameRequest(BaseModel):
+    audio_id: str
+    new_name: str
 
 class User(BaseModel):
     email: str
