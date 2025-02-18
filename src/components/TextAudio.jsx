@@ -1,36 +1,51 @@
-import { useState } from 'react';
-import { Play, Download, Trash2 } from 'lucide-react';
+import { useState, useEffect, useRef } from "react";
+import { Play, Download, Trash2 } from "lucide-react";
+import axios from "../api/axios";
 
 const TextAudio = () => {
-  const [text, setText] = useState('');
-  
-  const audioFiles = [
-    {
-      name: 'Hamid_French_Introducing Luga ..._2024-09-04.mp3',
-      duration: '0:20',
-      current: '0:02'
-    },
-    {
-      name: 'Zhuorui_Arabic_Luga AI is ..._2024-09-04.mp3',
-      duration: '0:20',
-      current: '0:02'
-    },
-    {
-      name: 'Gulidalai_Spanish_We frontier in ..._2024-09-04.mp3',
-      duration: '0:20',
-      current: '0:02'
-    },
-    {
-      name: 'Ruisi_Chinese_Luga AI is ..._2024-09-04.mp3',
-      duration: '0:20',
-      current: '0:02'
-    },
-    {
-      name: 'Nam_Arabic_Luga AI is ..._2024-09-04.mp3',
-      duration: '0:20',
-      current: '0:02'
+  const [text, setText] = useState("");
+  const [voices, setVoices] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const voicesPerPage = 10;
+
+  const fetchVoices = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get("/voice/voices");
+      setVoices(response.data);
+      setLoading(false);
+    } catch (error) {
+      console.error("Error fetching voices:", error);
+      setLoading(false);
     }
-  ];
+  };
+
+  useEffect(() => {
+    fetchVoices();
+  }, []);
+
+  const audioRefs = useRef([]);
+
+  const handlePlay = (index) => {
+    // Pause all audios before playing the selected one
+    audioRefs.current.forEach((audio, i) => {
+      if (audio && i !== index) {
+        audio.pause();
+        audio.currentTime = 0;
+      }
+    });
+    // Play the selected audio
+    if (audioRefs.current[index]) {
+      audioRefs.current[index].play();
+    }
+  };
+
+  const indexOfLastVoice = currentPage * voicesPerPage;
+  const indexOfFirstVoice = indexOfLastVoice - voicesPerPage;
+  const currentVoices = voices.slice(indexOfFirstVoice, indexOfLastVoice);
+
+  const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
   return (
     <div className="flex-1 flex space-x-4">
@@ -66,19 +81,63 @@ const TextAudio = () => {
 
       {/* Audio Files List - Right Side */}
       <div className="w-96 bg-white rounded-2xl p-6 shadow-sm">
-        {audioFiles.map((file, index) => (
-          <div key={index} className="group flex items-center py-4 first:pt-0 last:pb-0">
-            <Play className="w-5 h-5 text-gray-400 hover:text-gray-600 cursor-pointer" />
-            <div className="ml-4 flex-1 min-w-0">
-              <div className="text-sm truncate">{file.name}</div>
-              <div className="text-xs text-gray-400">{file.current} / {file.duration}</div>
-            </div>
-            <div className="flex items-center space-x-4 ml-4">
-              <Download className="w-5 h-5 text-gray-400 hover:text-gray-600 cursor-pointer" />
-              <Trash2 className="w-5 h-5 text-gray-400 hover:text-gray-600 cursor-pointer" />
+        {loading ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="animate-spin rounded-full h-9 w-9 border-t-2 border-b-2 border-gray-900"></div>
+          </div>
+        ) : (
+          <div>
+            {currentVoices.map((voice, index) => (
+              <div
+                key={index}
+                className="group flex items-center py-4 first:pt-0 last:pb-0"
+              >
+                {/* Hidden Audio Element */}
+                <audio
+                  ref={(el) => (audioRefs.current[index] = el)}
+                  src={voice.preview_url}
+                />
+
+                {/* Play Icon (Click to Play Audio) */}
+                <Play
+                  className="w-5 h-5 text-gray-400 hover:text-gray-600 cursor-pointer"
+                  onClick={() => handlePlay(index)}
+                />
+
+                {/* Voice Name */}
+                <div className="ml-4 flex-1 min-w-0">
+                  <div className="text-sm truncate">{voice.name}</div>
+                </div>
+
+                {/* Actions: Download & Delete */}
+                <div className="flex items-center space-x-4 ml-4">
+                  <a href={voice.preview_url} download>
+                    <Download className="w-5 h-5 text-gray-400 hover:text-gray-600 cursor-pointer" />
+                  </a>
+                  <Trash2 className="w-5 h-5 text-gray-400 hover:text-gray-600 cursor-pointer" />
+                </div>
+              </div>
+            ))}
+            <div className="flex justify-center mt-4">
+              {Array.from(
+                { length: Math.ceil(voices.length / voicesPerPage) },
+                (_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => paginate(i + 1)}
+                    className={`px-3 py-1 mx-1 rounded-full ${
+                      currentPage === i + 1
+                        ? "bg-black text-white"
+                        : "bg-gray-200 text-black"
+                    }`}
+                  >
+                    {i + 1}
+                  </button>
+                )
+              )}
             </div>
           </div>
-        ))}
+        )}
       </div>
     </div>
   );
