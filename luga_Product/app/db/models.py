@@ -13,6 +13,7 @@ class SubscriptionRequest(BaseModel):
 class User(BaseModel):
     email: str
     password: str
+    username:str
 
 
 class TokenLogOut(BaseModel):
