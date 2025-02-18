@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Play, Download, CheckCircle } from "lucide-react";
 import axios from "../api/axios";
-
+import { toast } from "react-toastify";
 const TextAudio = () => {
   const [text, setText] = useState("");
   const [voices, setVoices] = useState([]);
@@ -9,6 +9,7 @@ const TextAudio = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedVoice, setSelectedVoice] = useState(null);
   const voicesPerPage = 10;
+  const [isLoading, setIsLoading] = useState(false);
 
   const fetchVoices = async () => {
     try {
@@ -56,6 +57,36 @@ const TextAudio = () => {
       .catch((error) => console.error("Error downloading file:", error));
   };
 
+  const handleGenerateSpeech = async () => {
+    if (!text.trim() && !selectedVoice) {
+      toast.error("Please enter text and select a voice.");
+      return;
+    }
+    if (!text.trim()) {
+      toast.error("Please enter text.");
+      return;
+    }
+    if (!selectedVoice) {
+      toast.error("Please select a voice.");
+      return;
+    }
+    try {
+      setIsLoading(true);
+      const response = await axios.post("/voice/text-to-speech", {
+        text,
+        voice_id: selectedVoice.voice_id,
+      });
+      const audioUrl = response.data.audio_url;
+      const audio = new Audio(audioUrl);
+      audioRefs.current.push(audio);
+      audio.play();
+      setIsLoading(false);
+    } catch (error) {
+      console.error("Error generating speech:", error);
+      setIsLoading(false);
+    }
+  };
+
   const indexOfLastVoice = currentPage * voicesPerPage;
   const indexOfFirstVoice = indexOfLastVoice - voicesPerPage;
   const currentVoices = voices.slice(indexOfFirstVoice, indexOfLastVoice);
@@ -91,8 +122,16 @@ const TextAudio = () => {
                 <span className="text-sm">Upload your text</span>
               </button>
             </div>
-            <button className="rounded-full px-6 py-2 bg-black text-white hover:bg-gray-800 flex items-center">
-              <span className="text-sm">Generate speech</span>
+            <button
+              className="rounded-full px-6 py-2 bg-black text-white hover:bg-gray-800 flex items-center"
+              disabled={isLoading}
+              onClick={handleGenerateSpeech}
+            >
+              {isLoading ? (
+                <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
+              ) : (
+                <span className="text-sm">Generate speech</span>
+              )}
             </button>
           </div>
         </div>
