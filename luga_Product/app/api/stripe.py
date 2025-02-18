@@ -1,5 +1,5 @@
 from datetime import timedelta, timezone, datetime
-import bcrypt
+import logging
 from fastapi import APIRouter, HTTPException, Request
 import stripe
 import stripe.error
@@ -11,43 +11,63 @@ router = APIRouter()
 stripe.api_key = Config.STRIPE_API_KEY
 frontend_url = Config.FRONTEND_URL
 stripe_webhook_secret = Config.STRIPE_WEBHOOK_SECRET
-
+    # Define quota mapping
+QUOTA_MAP = {
+    "Test Leap": {"audio_quota": 5 * 60, "video_quota": 0, "text_quota": 0, "process_video_quota": 0},
+    "Demo": {"audio_quota": 5 * 60, "video_quota": 5 * 60, "text_quota": 0, "process_video_quota": 0},
+    "Starter": {"audio_quota": 60 * 60, "video_quota": 60 * 60, "text_quota": -1, "process_video_quota": 3},
+    "Creator": {"audio_quota": 240 * 60, "video_quota": 240 * 60, "text_quota": -1, "process_video_quota": 5},
+    "Team": {"audio_quota": 32400, "video_quota": 32400, "text_quota": -1, "process_video_quota": 10},
+}
+# Initialize logging
+logger = logging.getLogger(__name__)
 @router.post("/stripe-webhook")
 async def stripe_webhook(request: Request):
     payload = await request.body()
     sig_header = request.headers.get("stripe-signature")
 
     try:
-        event = stripe.Webhook.construct_event(
-            payload, sig_header, stripe_webhook_secret
-        )
-    except ValueError as e:
+        event = stripe.Webhook.construct_event(payload, sig_header, stripe_webhook_secret)
+    except ValueError:
+        logger.error("Invalid Stripe payload")
         raise HTTPException(status_code=400, detail="Invalid Payload")
-    except stripe.error.SignatureVerificationError as e:
+    except stripe.error.SignatureVerificationError:
+        logger.error("Invalid Stripe signature")
         raise HTTPException(status_code=400, detail="Invalid Signature")
-    
+
     if event["type"] == "checkout.session.completed":
         session = event["data"]["object"]
-        user_email = session["customer_email"]
-        name = session["metadata"]["name"]
-        # Define quota based on the plan
-        quota_map = {
-            #convert seconds to minutes
-            "Test Leap": {"audio_quota": 5 * 60},  # 5 minutes in seconds
-            "Demo": {"audio_quota": 5, "video_quota": 5},
-            "Starter": {"text_quota": -1, "audio_quota": 60, "video_quota": 60},
-            "Creator": {"text_quota": -1, "audio_quota": 240, "video_quota": 240},
-            "Team": {"text_quota": -1, "audio_quota": 32400, "video_quota": 32400},
-        }
-        
-        quota = quota_map.get(name, {})
-        
+        user_email = session.get("customer_email")
+        plan_name = session.get("metadata", {}).get("name")
+
+        if not user_email or not plan_name:
+            logger.warning("Missing user email or plan name in session metadata")
+            raise HTTPException(status_code=400, detail="Missing user email or plan name")
+
+        quota = QUOTA_MAP.get(plan_name)
+        if not quota:
+            logger.warning(f"Plan '{plan_name}' not found in quota map")
+            raise HTTPException(status_code=400, detail="Invalid plan name")
+
         user = await database.find_user_by_email(user_email)
         if user:
-            await database.update_status(user_email, "active", quota, name)
-    
-    return {"status": "Success"}
+            current_plan = user.get("plan_name")
+            current_quota = user.get("quota", {})
 
+            if current_plan:
+                logger.info(f"User {user_email} is upgrading from {current_plan} to {plan_name}")
+
+                # Retain remaining quota if upgrading
+                for key in quota.keys():
+                    if key in current_quota:
+                        quota[key] += max(0, current_quota[key])
+
+            await database.update_status(user_email, "active", quota, plan_name)
+            logger.info(f"Updated quota for {user_email} with plan {plan_name}")
+        else:
+            logger.warning(f"User {user_email} not found in database")
+
+    return {"status": "Success"}
 @router.post("/subscription_status")
 async def get_subscription_status(request: Request):
     payload = await request.json()
