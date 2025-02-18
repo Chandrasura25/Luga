@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Respons
 from fastapi.responses import FileResponse
 from app.services.voice_service import ElevenLabsService
 from app.db.database import database
-from app.db.models import Audio, VoiceUploadResponse, DocumentResponse, TextToSpeechRequest, UserEmailRequest
+from app.db.models import Audio, VoiceUploadResponse, DocumentResponse, TextToSpeechRequest, UserEmailRequest, UpdateAudioNameRequest
 from bson import ObjectId
 from io import StringIO
 import docx
@@ -60,7 +60,21 @@ async def text_to_speech(
     except Exception as e:
         print(e)
         raise HTTPException(status_code=500, detail=str(e))
-    
+# update name audio        
+@router.post("/update-audio-name", response_model=Audio)
+async def update_audio_name(request: UpdateAudioNameRequest):
+    """
+    Cập nhật tên của audio.
+    """
+    try:
+        audio = await database.db.audio.find_one({"id": request.audio_id})
+        if not audio:
+            raise HTTPException(status_code=404, detail="Audio not found")
+        await database.db.audio.update_one({"id": request.audio_id}, {"$set": {"file_name": request.new_name}})
+        return audio
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.post("/user-voices", response_model=List[Audio])
 async def get_user_voices(request: UserEmailRequest):
     """
