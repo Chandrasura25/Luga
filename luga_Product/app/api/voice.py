@@ -35,7 +35,7 @@ async def text_to_speech(
     try:
         user = await database.find_user_by_email(request.user_email)
         if not user or user.get("audio_quota", 0) == 0:
-            raise HTTPException(status_code=403, detail="Insufficient quota")
+            raise HTTPException(status_code=403, detail="Insufficient quota, please upgrade your plan")
         if not request.text.strip():
             raise HTTPException(status_code=422, detail="Text cannot be empty")
 
