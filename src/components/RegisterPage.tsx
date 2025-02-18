@@ -6,12 +6,13 @@ import axios from "../api/axios";
 const RegisterPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleRegister = async (e) => {
     e.preventDefault();
     setLoading(true);
-    const user = { email, password };
+    const user = { email, password, username };
     try {
       const response = await axios.post("/user/register", user);
 
@@ -22,6 +23,7 @@ const RegisterPage = () => {
         toast.success(data.message);
         setEmail("");
         setPassword("");
+        setUsername("");
       } else {
         toast.error(data.message || "Registration failed.");
       }
@@ -41,6 +43,14 @@ const RegisterPage = () => {
           Welcome to Luga.ai
         </h2>
         <form onSubmit={handleRegister} className="space-y-4">
+          <input
+            type="text"
+            placeholder="Enter your username"
+            value={username}
+            className="w-full p-3 rounded-lg bg-gray-50"
+            onChange={(e) => setUsername(e.target.value)}
+            required
+          />
           <input
             type="email"
             placeholder="Enter your email"
