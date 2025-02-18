@@ -52,6 +52,7 @@ async def text_to_speech(
             user_id=str(user["_id"]),  # Convert ObjectId to string
             voice_id=request.voice_id,
             audio_url=audio_url,
+            file_name=file_name
         )
         await database.db.audio.insert_one(audio_record.dict())
         return audio_record
