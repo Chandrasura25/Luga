@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Play, Download, CheckCircle } from "lucide-react";
+import { Play, Pause, Download, CheckCircle } from "lucide-react";
 import axios, { axiosPrivate } from "../api/axios";
 import { toast } from "react-toastify";
 import {
@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "../components/ui/select";
 import { useAuth } from "./auth";
+
 const TextAudio = () => {
   const { getUserEmail } = useAuth();
   const [text, setText] = useState("");
@@ -23,6 +24,8 @@ const TextAudio = () => {
   const [audioNames, setAudioNames] = useState({});
   const [audioDurations, setAudioDurations] = useState({});
   const [playbackRate, setPlaybackRate] = useState(1);
+  const [playingIndex, setPlayingIndex] = useState(null);
+
   const fetchVoices = async () => {
     try {
       setLoading(true);
@@ -34,6 +37,7 @@ const TextAudio = () => {
       setLoading(false);
     }
   };
+
   const fetchUserVoices = async () => {
     try {
       const response = await axiosPrivate.post("/voice/user-voices", {
@@ -44,6 +48,7 @@ const TextAudio = () => {
       console.error("Error fetching user voices:", error);
     }
   };
+
   useEffect(() => {
     fetchVoices();
     fetchUserVoices();
@@ -51,17 +56,22 @@ const TextAudio = () => {
 
   const audioRefs = useRef([]);
 
-  const handlePlay = (index) => {
-    // Pause all audios before playing the selected one
+  const handlePlayPause = (index) => {
     audioRefs.current.forEach((audio, i) => {
       if (audio && i !== index) {
         audio.pause();
         audio.currentTime = 0;
       }
     });
-    // Play the selected audio
     if (audioRefs.current[index]) {
-      audioRefs.current[index].play();
+      if (playingIndex === index) {
+        audioRefs.current[index].pause();
+        setPlayingIndex(null);
+      } else {
+        audioRefs.current[index].playbackRate = playbackRate;
+        audioRefs.current[index].play();
+        setPlayingIndex(index);
+      }
     }
   };
 
@@ -100,10 +110,7 @@ const TextAudio = () => {
     };
     try {
       setIsLoading(true);
-      const response = await axiosPrivate.post(
-        "/voice/text-to-speech",
-        request
-      );
+      const response = await axiosPrivate.post("/voice/text-to-speech", request);
       const audioUrl = response.data.audio_url;
       const audio = new Audio(audioUrl);
       audio.playbackRate = playbackRate;
@@ -111,7 +118,7 @@ const TextAudio = () => {
       audio.play();
       setUserVoices((prev) => [
         ...prev,
-        { voice_id: selectedVoice.voice_id, audio_url: audioUrl, name: "New Audio" },
+        { voice_id: selectedVoice.voice_id, audio_url: audioUrl, file_name: response.data.file_name },
       ]);
       setIsLoading(false);
     } catch (error) {
@@ -126,11 +133,26 @@ const TextAudio = () => {
 
   const handleSelectAndPlayVoice = (voice, index) => {
     handleSelectVoice(voice);
-    handlePlay(index);
+    handlePlayPause(index);
   };
 
   const handleNameChange = (index, newName) => {
     setAudioNames((prev) => ({ ...prev, [index]: newName }));
+    handleNameUpdate(index, newName);
+  };
+
+  const handleNameUpdate = async (index, newName) => {
+    const voice = userVoices[index];
+    try {
+      await axiosPrivate.post("/voice/update-audio-name", {
+        audio_url: voice.audio_url,
+        new_name: newName,
+      });
+      toast.success("Name updated successfully!");
+    } catch (error) {
+      console.error("Error updating name:", error);
+      toast.error("Failed to update name.");
+    }
   };
 
   const handleAudioLoadedMetadata = (index, audio) => {
@@ -139,6 +161,12 @@ const TextAudio = () => {
       [index]: audio.duration,
     }));
   };
+
+  useEffect(() => {
+    if (playingIndex !== null && audioRefs.current[playingIndex]) {
+      audioRefs.current[playingIndex].playbackRate = playbackRate;
+    }
+  }, [playbackRate, playingIndex]);
 
   return (
     <div className="flex-1 flex space-x-4">
@@ -225,15 +253,22 @@ const TextAudio = () => {
                 onLoadedMetadata={(e) => handleAudioLoadedMetadata(index, e.target)}
               />
 
-              <Play
-                className="w-5 h-5 text-gray-400 hover:text-gray-600 cursor-pointer"
-                onClick={() => handlePlay(index)}
-              />
+              {playingIndex === index ? (
+                <Pause
+                  className="w-5 h-5 text-gray-400 hover:text-gray-600 cursor-pointer"
+                  onClick={() => handlePlayPause(index)}
+                />
+              ) : (
+                <Play
+                  className="w-5 h-5 text-gray-400 hover:text-gray-600 cursor-pointer"
+                  onClick={() => handlePlayPause(index)}
+                />
+              )}
 
               <div className="ml-4 flex-1 min-w-0">
                 <input
                   type="text"
-                  value={audioNames[index] || voice.name}
+                  value={audioNames[index] || voice.file_name}
                   onChange={(e) => handleNameChange(index, e.target.value)}
                   className="text-sm truncate border-b border-gray-300 focus:outline-none"
                 />
