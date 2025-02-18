@@ -74,5 +74,18 @@ class Database:
 
         if active_processes >= process_limit:
             raise HTTPException(status_code=403, detail="Video processing limit reached. Please wait or upgrade your plan.")
+def check_text_quota(user, text):
+    """ Check if user has enough text quota before processing """
+    user_plan = user["plan"]
+    max_text = quota_map[user_plan]["text_quota"]
+    used_text = user.get("used_text_characters", 0)
+    
+    if max_text != -1 and used_text + len(text) > max_text:
+        raise HTTPException(status_code=403, detail="Text quota exceeded. Upgrade your plan.")
+
+async def update_text_quota(user, text):
+    """ Update the used text quota after processing """
+    new_used_text = user["used_text_characters"] + len(text)
+    await database.db.users.update_one({"_id": user["_id"]}, {"$set": {"used_text_characters": new_used_text}})
 
 database = Database()
