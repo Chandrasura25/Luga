@@ -79,6 +79,7 @@ async def verify_email(token: str):
 @router.post("/register")
 async def create_user(user: User, background_tasks: BackgroundTasks):
     email = user.email
+    username = user.username
     if not validate_email(email):
         raise HTTPException(status_code=400, detail="Invalid email format.")
     salt = bcrypt.gensalt()
@@ -94,6 +95,7 @@ async def create_user(user: User, background_tasks: BackgroundTasks):
         "id": str(ObjectId()),
         "email": email,
         "password": password,
+        "username": username,
         "created_at": datetime.now(timezone.utc),
         "usage_limit": 10,
         "subscription_status": "inactive",
