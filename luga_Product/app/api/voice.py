@@ -2,13 +2,15 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Respons
 from fastapi.responses import FileResponse
 from app.services.voice_service import ElevenLabsService
 from app.db.database import database
-from app.db.models import Audio, VoiceUploadResponse, DocumentResponse, TextToSpeechRequest
+from app.db.models import Audio, VoiceUploadResponse, DocumentResponse, TextToSpeechRequest, UserEmailRequest
 from bson import ObjectId
 from io import StringIO
 import docx
 import PyPDF2
 import os
 from app.services.cloudinary import upload_audio_to_cloudinary
+from fastapi import Query
+from typing import List
 
 router = APIRouter()
 
@@ -18,7 +20,7 @@ os.makedirs(AUDIO_FILES_DIR, exist_ok=True)
 async def get_eleven_labs_service():
     return ElevenLabsService()
 
-@router.get("/voices/")
+@router.get("/voices")
 async def get_voices(service: ElevenLabsService = Depends()):
     """
     Lấy danh sách các giọng nói từ Eleven Labs API.
@@ -57,12 +59,18 @@ async def text_to_speech(
     except Exception as e:
         print(e)
         raise HTTPException(status_code=500, detail=str(e))
-@router.get("/voices")
-async def get_voices(service: ElevenLabsService = Depends()):
+    
+@router.post("/user-voices", response_model=List[Audio])
+async def get_user_voices(request: UserEmailRequest):
     """
-    Lấy danh sách các giọng nói từ Eleven Labs API.
+    Lấy danh sách các giọng nói của user từ Eleven Labs API.
     """
-    return service.get_voices()
+    try:
+        user = await database.find_user_by_email(request.email)
+        voices = await database.db.audio.find({"user_id": str(user["_id"])}).to_list(None)
+        return voices
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 # Route phục vụ file audio từ server
 @router.get("/{file_name}")
