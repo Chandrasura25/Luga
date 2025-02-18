@@ -59,6 +59,12 @@ async def text_to_speech(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.get("/voices")
+async def get_voices(service: ElevenLabsService = Depends()):
+    """
+    Lấy danh sách các giọng nói từ Eleven Labs API.
+    """
+    return service.get_voices()
 
 # Route phục vụ file audio từ server
 @router.get("/{file_name}")
