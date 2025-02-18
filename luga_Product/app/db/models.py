@@ -39,7 +39,7 @@ class DocumentResponse(BaseModel):
     text: str
 
 class TextToSpeechRequest(BaseModel):
-    user_id: str
+    user_email: str
     voice_id: str
     text: str
 
