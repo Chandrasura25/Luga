@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "../components/ui/select";
 import { useAuth } from "./auth";
+import { Slider } from "../components/ui/slider";
 
 const TextAudio = () => {
   const { getUserEmail } = useAuth();
@@ -20,6 +21,7 @@ const TextAudio = () => {
   const [loading, setLoading] = useState(false);
   const [selectedVoice, setSelectedVoice] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [fetchLoading, setFetchLoading] = useState(false);
   const [userVoices, setUserVoices] = useState([]);
   const [audioNames, setAudioNames] = useState({});
   const [audioDurations, setAudioDurations] = useState({});
@@ -40,12 +42,15 @@ const TextAudio = () => {
 
   const fetchUserVoices = async () => {
     try {
+      setFetchLoading(true);
       const response = await axiosPrivate.post("/voice/user-voices", {
         email: getUserEmail(),
       });
       setUserVoices(response.data);
     } catch (error) {
       console.error("Error fetching user voices:", error);
+    } finally {
+      setFetchLoading(false);
     }
   };
 
@@ -110,7 +115,10 @@ const TextAudio = () => {
     };
     try {
       setIsLoading(true);
-      const response = await axiosPrivate.post("/voice/text-to-speech", request);
+      const response = await axiosPrivate.post(
+        "/voice/text-to-speech",
+        request
+      );
       const audioUrl = response.data.audio_url;
       const audio = new Audio(audioUrl);
       audio.playbackRate = playbackRate;
@@ -118,7 +126,11 @@ const TextAudio = () => {
       audio.play();
       setUserVoices((prev) => [
         ...prev,
-        { voice_id: selectedVoice.voice_id, audio_url: audioUrl, file_name: response.data.file_name },
+        {
+          voice_id: selectedVoice.voice_id,
+          audio_url: audioUrl,
+          file_name: response.data.file_name,
+        },
       ]);
       setIsLoading(false);
     } catch (error) {
@@ -241,74 +253,94 @@ const TextAudio = () => {
           <h3 className="text-sm font-bold pb-2">Generated Audios</h3>
         </div>
 
-        <div>
-          {userVoices.map((voice, index) => (
-            <div
-              key={voice.voice_id}
-              className="group flex items-center py-4 first:pt-0 last:pb-0"
-            >
-              <audio
-                ref={(el) => (audioRefs.current[index] = el)}
-                src={voice.audio_url}
-                onLoadedMetadata={(e) => handleAudioLoadedMetadata(index, e.target)}
-              />
+        {fetchLoading ? (
+          <div className="flex justify-center items-center h-full">
+            <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-gray-900"></div>
+          </div>
+        ) : (
+          <>
+            <div>
+              {userVoices.map((voice, index) => (
+                <div
+                  key={voice.voice_id}
+                  className="group flex items-center py-4 first:pt-0 last:pb-0"
+                >
+                  <audio
+                    ref={(el) => (audioRefs.current[index] = el)}
+                    src={voice.audio_url}
+                    onLoadedMetadata={(e) =>
+                      handleAudioLoadedMetadata(index, e.target)
+                    }
+                  />
 
-              {playingIndex === index ? (
-                <Pause
-                  className="w-5 h-5 text-gray-400 hover:text-gray-600 cursor-pointer"
-                  onClick={() => handlePlayPause(index)}
-                />
-              ) : (
-                <Play
-                  className="w-5 h-5 text-gray-400 hover:text-gray-600 cursor-pointer"
-                  onClick={() => handlePlayPause(index)}
-                />
-              )}
+                  {playingIndex === index ? (
+                    <Pause
+                      className="w-5 h-5 text-gray-400 hover:text-gray-600 cursor-pointer"
+                      onClick={() => handlePlayPause(index)}
+                    />
+                  ) : (
+                    <Play
+                      className="w-5 h-5 text-gray-400 hover:text-gray-600 cursor-pointer"
+                      onClick={() => handlePlayPause(index)}
+                    />
+                  )}
 
-              <div className="ml-4 flex-1 min-w-0">
-                <input
-                  type="text"
-                  value={audioNames[index] || voice.file_name}
-                  onChange={(e) => handleNameChange(index, e.target.value)}
-                  className="text-sm truncate border-b border-gray-300 focus:outline-none"
-                />
-                <div className="text-xs text-gray-500">
-                  {audioDurations[index] ? `${Math.floor(audioDurations[index] / 60)}:${Math.floor(audioDurations[index] % 60).toString().padStart(2, '0')}` : "Loading..."}
+                  <div className="ml-4 flex-1 min-w-0">
+                    <input
+                      type="text"
+                      value={audioNames[index] || voice.file_name}
+                      onChange={(e) => handleNameChange(index, e.target.value)}
+                      className="text-sm truncate border-b border-gray-300 focus:outline-none"
+                    />
+                    <div className="text-xs text-gray-500">
+                      {audioDurations[index]
+                        ? `${Math.floor(audioDurations[index] / 60)}:${Math.floor(
+                            audioDurations[index] % 60
+                          )
+                            .toString()
+                            .padStart(2, "0")}`
+                        : "Loading..."}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-4 ml-4">
+                    <Download
+                      className="w-5 h-5 text-gray-400 hover:text-gray-600 cursor-pointer"
+                      onClick={() =>
+                        handleDownload(
+                          voice.audio_url,
+                          `${audioNames[index] || voice.name}.mp3`
+                        )
+                      }
+                    />
+                    <CheckCircle
+                      className={`w-5 h-5 cursor-pointer ${
+                        selectedVoice === voice
+                          ? "text-green-600"
+                          : "text-gray-400 hover:text-gray-600"
+                      }`}
+                      onClick={() => handleSelectVoice(voice)}
+                    />
+                  </div>
                 </div>
-              </div>
-
-              <div className="flex items-center space-x-4 ml-4">
-                <Download
-                  className="w-5 h-5 text-gray-400 hover:text-gray-600 cursor-pointer"
-                  onClick={() =>
-                    handleDownload(voice.audio_url, `${audioNames[index] || voice.name}.mp3`)
-                  }
-                />
-                <CheckCircle
-                  className={`w-5 h-5 cursor-pointer ${
-                    selectedVoice === voice
-                      ? "text-green-600"
-                      : "text-gray-400 hover:text-gray-600"
-                  }`}
-                  onClick={() => handleSelectVoice(voice)}
-                />
-              </div>
+              ))}
             </div>
-          ))}
-        </div>
-        <div className="mt-4">
-          <label className="block text-sm font-medium text-gray-700">Playback Speed</label>
-          <input
-            type="range"
-            min="0.5"
-            max="2"
-            step="0.1"
-            value={playbackRate}
-            onChange={(e) => setPlaybackRate(e.target.value)}
-            className="w-full"
-          />
-          <div className="text-sm text-gray-500">{playbackRate}x</div>
-        </div>
+
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700">
+                Playback Speed
+              </label>
+              <Slider
+                min={0.5}
+                max={2}
+                step={0.1}
+                value={[playbackRate]}
+                onValueChange={(value) => setPlaybackRate(value[0])}
+              />
+              <div className="text-sm text-gray-500">{playbackRate}x</div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
