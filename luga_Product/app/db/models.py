@@ -15,6 +15,8 @@ class User(BaseModel):
     password: str
     username:str
 
+class UserEmailRequest(BaseModel):
+    email: str
 
 class TokenLogOut(BaseModel):
     token: str
