@@ -33,13 +33,15 @@ async def text_to_speech(
     service: ElevenLabsService = Depends(get_eleven_labs_service)
 ):
     try:
+        user = await database.find_user_by_email(request.user_email)
+        if not user or user.get("audio_quota", 0) == 0:
+            raise HTTPException(status_code=403, detail="Insufficient quota")
         if not request.text.strip():
             raise HTTPException(status_code=422, detail="Text cannot be empty")
 
         if not request.voice_id:
             raise HTTPException(status_code=422, detail="Voice ID is required")
 
-        user = await database.find_user_by_email(request.user_email)
 
         audio_content = service.text_to_speech(request.voice_id, request.text)
         if not audio_content:
