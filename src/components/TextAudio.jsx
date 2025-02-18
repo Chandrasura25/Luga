@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Play, Pause, Download, CheckCircle } from "lucide-react";
+import { Play, Pause, Download, Edit3, Check } from "lucide-react";
 import axios, { axiosPrivate } from "../api/axios";
 import { toast } from "react-toastify";
 import {
@@ -27,6 +27,7 @@ const TextAudio = () => {
   const [audioDurations, setAudioDurations] = useState({});
   const [playbackRate, setPlaybackRate] = useState(1);
   const [playingIndex, setPlayingIndex] = useState(null);
+  const [editingIndex, setEditingIndex] = useState(null);
 
   const fetchVoices = async () => {
     try {
@@ -150,7 +151,6 @@ const TextAudio = () => {
 
   const handleNameChange = (index, newName) => {
     setAudioNames((prev) => ({ ...prev, [index]: newName }));
-    handleNameUpdate(index, newName);
   };
 
   const handleNameUpdate = async (index, newName) => {
@@ -172,6 +172,13 @@ const TextAudio = () => {
       ...prev,
       [index]: audio.duration,
     }));
+  };
+
+  const handleNameKeyPress = (index, event) => {
+    if (event.key === "Enter") {
+      handleNameUpdate(index, audioNames[index]);
+      setEditingIndex(null);
+    }
   };
 
   useEffect(() => {
@@ -286,17 +293,32 @@ const TextAudio = () => {
                   )}
 
                   <div className="ml-4 flex-1 min-w-0">
-                    <input
-                      type="text"
-                      value={audioNames[index] || voice.file_name}
-                      onChange={(e) => handleNameChange(index, e.target.value)}
-                      className="text-sm truncate border-b border-gray-300 focus:outline-none"
-                    />
+                    {editingIndex === index ? (
+                      <input
+                        type="text"
+                        value={audioNames[index] || voice.file_name}
+                        onChange={(e) => handleNameChange(index, e.target.value)}
+                        onBlur={() => {
+                          handleNameUpdate(index, audioNames[index]);
+                          setEditingIndex(null);
+                        }}
+                        onKeyPress={(e) => handleNameKeyPress(index, e)}
+                        className="text-sm truncate border-b border-gray-300 focus:outline-none"
+                        autoFocus
+                      />
+                    ) : (
+                      <div
+                        className="text-sm truncate border-b border-transparent cursor-pointer"
+                        onDoubleClick={() => setEditingIndex(index)}
+                      >
+                        {audioNames[index] || voice.file_name}
+                      </div>
+                    )}
                     <div className="text-xs text-gray-500">
                       {audioDurations[index]
-                        ? `${Math.floor(audioDurations[index] / 60)}:${Math.floor(
-                            audioDurations[index] % 60
-                          )
+                        ? `${Math.floor(
+                            audioDurations[index] / 60
+                          )}:${Math.floor(audioDurations[index] % 60)
                             .toString()
                             .padStart(2, "0")}`
                         : "Loading..."}
@@ -313,14 +335,24 @@ const TextAudio = () => {
                         )
                       }
                     />
-                    <CheckCircle
-                      className={`w-5 h-5 cursor-pointer ${
-                        selectedVoice === voice
-                          ? "text-green-600"
-                          : "text-gray-400 hover:text-gray-600"
-                      }`}
-                      onClick={() => handleSelectVoice(voice)}
-                    />
+                    {editingIndex === index ? (
+                      <Check
+                        className="w-5 h-5 text-green-600 cursor-pointer"
+                        onClick={() => {
+                          handleNameUpdate(index, audioNames[index]);
+                          setEditingIndex(null);
+                        }}
+                      />
+                    ) : (
+                      <Edit3
+                        className={`w-5 h-5 cursor-pointer ${
+                          selectedVoice === voice
+                            ? "text-green-600"
+                            : "text-gray-400 hover:text-gray-600"
+                        }`}
+                        onClick={() => setEditingIndex(index)}
+                      />
+                    )}
                   </div>
                 </div>
               ))}
