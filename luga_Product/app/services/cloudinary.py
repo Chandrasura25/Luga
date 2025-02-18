@@ -14,7 +14,20 @@ cloudinary.config(
     secure = True
 )
 
-
+async def upload_audio_to_cloudinary(audio_content: bytes, folder: str, file_name: str) -> str:
+    try:
+        upload_result = cloudinary.uploader.upload(
+            audio_content,
+            folder=folder,
+            resource_type="auto",
+            public_id=file_name.split('.')[0]
+        )
+        return upload_result['secure_url']
+    except cloudinary.exceptions.Error as e:
+        raise HTTPException(status_code=500, detail=f"Cloudinary upload error: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred while uploading: {str(e)}")
+    
 async def upload_file_to_cloudinary(file: UploadFile, folder: str) -> dict:
     try:
         if not is_file_allowed(file.filename):
