@@ -2,17 +2,27 @@ import { useState, useEffect, useRef } from "react";
 import { Play, Download, CheckCircle } from "lucide-react";
 import axios, { axiosPrivate } from "../api/axios";
 import { toast } from "react-toastify";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
 import { useAuth } from "./auth";
 const TextAudio = () => {
   const { getUserEmail } = useAuth();
   const [text, setText] = useState("");
   const [voices, setVoices] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
   const [selectedVoice, setSelectedVoice] = useState(null);
-  const voicesPerPage = 10;
   const [isLoading, setIsLoading] = useState(false);
-
+  const [userVoices, setUserVoices] = useState([]);
+  const [audioNames, setAudioNames] = useState({});
+  const [audioDurations, setAudioDurations] = useState({});
+  const [playbackRate, setPlaybackRate] = useState(1);
   const fetchVoices = async () => {
     try {
       setLoading(true);
@@ -24,9 +34,19 @@ const TextAudio = () => {
       setLoading(false);
     }
   };
-
+  const fetchUserVoices = async () => {
+    try {
+      const response = await axiosPrivate.post("/voice/user-voices", {
+        email: getUserEmail(),
+      });
+      setUserVoices(response.data);
+    } catch (error) {
+      console.error("Error fetching user voices:", error);
+    }
+  };
   useEffect(() => {
     fetchVoices();
+    fetchUserVoices();
   }, []);
 
   const audioRefs = useRef([]);
@@ -46,19 +66,20 @@ const TextAudio = () => {
   };
 
   const handleDownload = (url, name) => {
-    axios.get(url, { responseType: 'blob' })
+    axios
+      .get(url, { responseType: "blob" })
       .then((response) => {
         const url = window.URL.createObjectURL(new Blob([response.data]));
-        const link = document.createElement('a');
+        const link = document.createElement("a");
         link.href = url;
-        link.setAttribute('download', name);
+        link.setAttribute("download", name);
         document.body.appendChild(link);
         link.click();
         link.parentNode.removeChild(link);
       })
       .catch((error) => console.error("Error downloading file:", error));
   };
-  const email = getUserEmail();
+
   const handleGenerateSpeech = async () => {
     if (!text.trim() && !selectedVoice) {
       toast.error("Please enter text and select a voice.");
@@ -75,16 +96,23 @@ const TextAudio = () => {
     const request = {
       text,
       voice_id: selectedVoice.voice_id,
-      user_email: email,
+      user_email: getUserEmail(),
     };
     try {
       setIsLoading(true);
-      const response = await axiosPrivate.post("/voice/text-to-speech", request);
-      console.log(response);
+      const response = await axiosPrivate.post(
+        "/voice/text-to-speech",
+        request
+      );
       const audioUrl = response.data.audio_url;
       const audio = new Audio(audioUrl);
+      audio.playbackRate = playbackRate;
       audioRefs.current.push(audio);
       audio.play();
+      setUserVoices((prev) => [
+        ...prev,
+        { voice_id: selectedVoice.voice_id, audio_url: audioUrl, name: "New Audio" },
+      ]);
       setIsLoading(false);
     } catch (error) {
       console.error("Error generating speech:", error);
@@ -92,14 +120,24 @@ const TextAudio = () => {
     }
   };
 
-  const indexOfLastVoice = currentPage * voicesPerPage;
-  const indexOfFirstVoice = indexOfLastVoice - voicesPerPage;
-  const currentVoices = voices.slice(indexOfFirstVoice, indexOfLastVoice);
-
-  const paginate = (pageNumber) => setCurrentPage(pageNumber);
-
   const handleSelectVoice = (voice) => {
     setSelectedVoice(voice);
+  };
+
+  const handleSelectAndPlayVoice = (voice, index) => {
+    handleSelectVoice(voice);
+    handlePlay(index);
+  };
+
+  const handleNameChange = (index, newName) => {
+    setAudioNames((prev) => ({ ...prev, [index]: newName }));
+  };
+
+  const handleAudioLoadedMetadata = (index, audio) => {
+    setAudioDurations((prev) => ({
+      ...prev,
+      [index]: audio.duration,
+    }));
   };
 
   return (
@@ -120,9 +158,36 @@ const TextAudio = () => {
           {/* Buttons */}
           <div className="flex items-center justify-between mt-6 space-x-4">
             <div className="flex space-x-4">
-              <button className="rounded-full px-4 py-2 border border-gray-200 hover:bg-gray-50 flex items-center">
-                <span className="text-sm">Choose from chat history</span>
-              </button>
+              <Select
+                onValueChange={(value) => {
+                  const voice = voices.find((v) => v.voice_id === value);
+                  const index = voices.indexOf(voice);
+                  handleSelectAndPlayVoice(voice, index);
+                }}
+                defaultValue={selectedVoice?.voice_id}
+              >
+                <SelectTrigger className="rounded-full px-4 py-2 border border-gray-200 hover:bg-gray-50 flex items-center">
+                  <SelectValue placeholder="Select From Library" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectLabel>Library</SelectLabel>
+                    {loading ? (
+                      <SelectItem value="loading">Loading...</SelectItem>
+                    ) : (
+                      voices.map((voice) => (
+                        <SelectItem
+                          key={voice.voice_id}
+                          value={voice.voice_id}
+                          className="uppercase"
+                        >
+                          {voice.name}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
               <button className="rounded-full px-4 py-2 border border-gray-200 hover:bg-gray-50 flex items-center">
                 <span className="text-sm">Upload your text</span>
               </button>
@@ -145,72 +210,70 @@ const TextAudio = () => {
       {/* Audio Files List - Right Side */}
       <div className="w-96 bg-white rounded-2xl p-6 shadow-sm">
         <div className="flex uppercase">
-          <h3 className="text-sm font-bold pb-2">Select From Library</h3>
+          <h3 className="text-sm font-bold pb-2">Generated Audios</h3>
         </div>
-        {loading ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="animate-spin rounded-full h-9 w-9 border-t-2 border-b-2 border-gray-900"></div>
-          </div>
-        ) : (
-          <div>
-            {currentVoices.map((voice, index) => (
-              <div
-                key={voice.voice_id}
-                className="group flex items-center py-4 first:pt-0 last:pb-0"
-              >
-                {/* Hidden Audio Element */}
-                <audio
-                  ref={(el) => (audioRefs.current[index] = el)}
-                  src={voice.preview_url}
+
+        <div>
+          {userVoices.map((voice, index) => (
+            <div
+              key={voice.voice_id}
+              className="group flex items-center py-4 first:pt-0 last:pb-0"
+            >
+              <audio
+                ref={(el) => (audioRefs.current[index] = el)}
+                src={voice.audio_url}
+                onLoadedMetadata={(e) => handleAudioLoadedMetadata(index, e.target)}
+              />
+
+              <Play
+                className="w-5 h-5 text-gray-400 hover:text-gray-600 cursor-pointer"
+                onClick={() => handlePlay(index)}
+              />
+
+              <div className="ml-4 flex-1 min-w-0">
+                <input
+                  type="text"
+                  value={audioNames[index] || voice.name}
+                  onChange={(e) => handleNameChange(index, e.target.value)}
+                  className="text-sm truncate border-b border-gray-300 focus:outline-none"
                 />
-
-                {/* Play Icon (Click to Play Audio) */}
-                <Play
-                  className="w-5 h-5 text-gray-400 hover:text-gray-600 cursor-pointer"
-                  onClick={() => handlePlay(index)}
-                />
-
-                {/* Voice Name */}
-                <div className="ml-4 flex-1 min-w-0">
-                  <div className="text-sm truncate uppercase">{voice.name}</div>
-                  <div className="text-xs text-gray-500">
-                    {voice.labels.accent} / {voice.labels.description}
-                  </div>
-                </div>
-
-                {/* Actions: Download & Select */}
-                <div className="flex items-center space-x-4 ml-4">
-                  <Download
-                    className="w-5 h-5 text-gray-400 hover:text-gray-600 cursor-pointer"
-                    onClick={() => handleDownload(voice.preview_url, `${voice.name}.mp3`)}
-                  />
-                  <CheckCircle
-                    className={`w-5 h-5 cursor-pointer ${selectedVoice === voice ? "text-green-600" : "text-gray-400 hover:text-gray-600"}`}
-                    onClick={() => handleSelectVoice(voice)}
-                  />
+                <div className="text-xs text-gray-500">
+                  {audioDurations[index] ? `${Math.floor(audioDurations[index] / 60)}:${Math.floor(audioDurations[index] % 60).toString().padStart(2, '0')}` : "Loading..."}
                 </div>
               </div>
-            ))}
-            <div className="flex justify-center mt-4">
-              {Array.from(
-                { length: Math.ceil(voices.length / voicesPerPage) },
-                (_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => paginate(i + 1)}
-                    className={`px-3 py-1 mx-1 rounded-full ${
-                      currentPage === i + 1
-                        ? "bg-black text-white"
-                        : "bg-gray-200 text-black"
-                    }`}
-                  >
-                    {i + 1}
-                  </button>
-                )
-              )}
+
+              <div className="flex items-center space-x-4 ml-4">
+                <Download
+                  className="w-5 h-5 text-gray-400 hover:text-gray-600 cursor-pointer"
+                  onClick={() =>
+                    handleDownload(voice.audio_url, `${audioNames[index] || voice.name}.mp3`)
+                  }
+                />
+                <CheckCircle
+                  className={`w-5 h-5 cursor-pointer ${
+                    selectedVoice === voice
+                      ? "text-green-600"
+                      : "text-gray-400 hover:text-gray-600"
+                  }`}
+                  onClick={() => handleSelectVoice(voice)}
+                />
+              </div>
             </div>
-          </div>
-        )}
+          ))}
+        </div>
+        <div className="mt-4">
+          <label className="block text-sm font-medium text-gray-700">Playback Speed</label>
+          <input
+            type="range"
+            min="0.5"
+            max="2"
+            step="0.1"
+            value={playbackRate}
+            onChange={(e) => setPlaybackRate(e.target.value)}
+            className="w-full"
+          />
+          <div className="text-sm text-gray-500">{playbackRate}x</div>
+        </div>
       </div>
     </div>
   );
