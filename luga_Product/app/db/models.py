@@ -26,6 +26,7 @@ class Audio(BaseModel):
     user_id: str
     voice_id: str
     audio_url: str
+    file_name: str
 
     class Config:
         allow_population_by_field_name = True
