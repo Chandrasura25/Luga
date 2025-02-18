@@ -8,6 +8,7 @@ from io import StringIO
 import docx
 import PyPDF2
 import os
+from app.services.cloudinary import upload_audio_to_cloudinary
 
 router = APIRouter()
 
@@ -35,23 +36,20 @@ async def text_to_speech(
 
         if not request.voice_id:
             raise HTTPException(status_code=422, detail="Voice ID is required")
+
         user = await database.find_user_by_email(request.user_email)
 
         audio_content = service.text_to_speech(request.voice_id, request.text)
-        # Thêm kiểm tra audio_content
         if not audio_content:
             raise HTTPException(status_code=500, detail="Failed to generate audio content")
 
         file_name = f"{user['_id']}_{request.voice_id}_{str(ObjectId())}.mp3"
-        file_path = os.path.join(AUDIO_FILES_DIR, file_name)
+        audio_url = await upload_audio_to_cloudinary(audio_content, "audio_files", file_name)
 
-        with open(file_path, "wb") as f:
-            f.write(audio_content)
-            
         audio_record = Audio(
             user_id=str(user["_id"]),  # Convert ObjectId to string
             voice_id=request.voice_id,
-            audio_url=file_name,  # Removed leading slash
+            audio_url=audio_url,
         )
         await database.db.audio.insert_one(audio_record.dict())
         return audio_record
@@ -59,7 +57,6 @@ async def text_to_speech(
     except Exception as e:
         print(e)
         raise HTTPException(status_code=500, detail=str(e))
-
 @router.get("/voices")
 async def get_voices(service: ElevenLabsService = Depends()):
     """
