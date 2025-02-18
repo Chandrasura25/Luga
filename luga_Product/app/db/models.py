@@ -17,6 +17,10 @@ class User(BaseModel):
     email: str
     password: str
     username:str
+    used_audio_time: float = 0.0  
+    used_video_time: float = 0.0  
+    used_process_videos: int = 0  # Active processing videos count
+    used_text_characters: int = 0  # Track text generation characters
 
 class UserEmailRequest(BaseModel):
     email: str
