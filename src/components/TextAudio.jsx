@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Play, Pause, Download, Edit3, Check } from "lucide-react";
 import axios, { axiosPrivate } from "../api/axios";
-import { toast } from "react-toastify";
 import {
   Select,
   SelectContent,
@@ -13,8 +12,9 @@ import {
 } from "../components/ui/select";
 import { useAuth } from "./auth";
 import { Slider } from "../components/ui/slider";
-
+import { useToast } from "../hooks/use-toast";
 const TextAudio = () => {
+  const { toast } = useToast();
   const { getUserEmail } = useAuth();
   const [text, setText] = useState("");
   const [voices, setVoices] = useState([]);
@@ -93,20 +93,38 @@ const TextAudio = () => {
         link.click();
         link.parentNode.removeChild(link);
       })
-      .catch((error) => console.error("Error downloading file:", error));
+      .catch((error) => {
+        toast({
+          variant: "destructive",
+          title: "Error downloading file.",
+          description: error.response.data.detail,
+        });
+      });
   };
 
   const handleGenerateSpeech = async () => {
     if (!text.trim() && !selectedVoice) {
-      toast.error("Please enter text and select a voice.");
+      toast({
+        variant: "destructive",
+        title: "Please enter text and select a voice.",
+        description: "Please enter text and select a voice to generate speech.",
+      });
       return;
     }
     if (!text.trim()) {
-      toast.error("Please enter text.");
+      toast({
+        variant: "destructive",
+        title: "Please enter text.",
+        description: "Please enter text to generate speech.",
+      });
       return;
     }
     if (!selectedVoice) {
-      toast.error("Please select a voice.");
+      toast({
+        variant: "destructive",
+        title: "Please select a voice.",
+        description: "Please select a voice from the dropdown menu.",
+      });
       return;
     }
     const request = {
@@ -135,6 +153,11 @@ const TextAudio = () => {
       ]);
       setIsLoading(false);
     } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error generating speech.",
+        description: error.response.data.detail,
+      });
       console.error("Error generating speech:", error);
       setIsLoading(false);
     }
@@ -160,10 +183,16 @@ const TextAudio = () => {
         audio_id: voice.id,
         new_name: newName,
       });
-      toast.success("Name updated successfully!");
+      toast({
+        description: "Name updated successfully!",
+      });
     } catch (error) {
       console.error("Error updating name:", error);
-      toast.error("Failed to update name.");
+      toast({
+        variant: "destructive",
+        title: "Error updating name.",
+        description: error.response.data.detail,
+      });
     }
   };
 
@@ -202,10 +231,16 @@ const TextAudio = () => {
           },
         });
         setText(response.data.text);
-        toast.success("Document uploaded successfully!");
+        toast({
+          description: "Document uploaded successfully!",
+        });
       } catch (error) {
         console.error("Error uploading document:", error);
-        toast.error("Failed to upload document.");
+        toast({
+          variant: "destructive",
+          title: "Error uploading document.",
+          description: error.response.data.detail,
+        });
       } finally {
         setUploadLoading(false);
       }
