@@ -57,12 +57,14 @@ class AudioUploadResponse(BaseModel):
     user_id: str
     audio_id: str
     audio_url: str
+    file_name: str
     message: str
 
 class VideoUploadResponse(BaseModel):
     user_id: str
     video_id: str
     video_url: str  
+    file_name: str
     message: str
 
 class VideoProcessedResponse(BaseModel):
