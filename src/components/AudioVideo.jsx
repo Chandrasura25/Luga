@@ -16,7 +16,10 @@ const TextToVideo = () => {
   const { getUserEmail } = useAuth();
   const [uploadLoading, setUploadLoading] = useState(false);
   const [audioHistory, setAudioHistory] = useState([]);
+  const [videoHistory, setVideoHistory] = useState([]);
   const [selectedAudio, setSelectedAudio] = useState(null);
+  const [selectedVideo, setSelectedVideo] = useState(null);
+
   const getAudioHistory = async () => {
     try {
       const response = await axiosPrivate.post("/video/get-audio", {
@@ -27,9 +30,23 @@ const TextToVideo = () => {
       console.error("Error getting audio history:", error);
     }
   };
+
+  const getVideoHistory = async () => {
+    try {
+      const response = await axiosPrivate.post("/video/get-video", {
+        user_email: getUserEmail(),
+      });
+      setVideoHistory(response.data);
+    } catch (error) {
+      console.error("Error getting video history:", error);
+    }
+  };
+
   useEffect(() => {
     getAudioHistory();
+    getVideoHistory();
   }, []);
+
   const handleFileUpload = async (event) => {
     setUploadLoading(true);
     const file = event.target.files[0];
@@ -68,6 +85,46 @@ const TextToVideo = () => {
       }
     }
   };
+
+  const handleVideoUpload = async (event) => {
+    setUploadLoading(true);
+    const file = event.target.files[0];
+    if (file) {
+      const formData = new FormData();
+      formData.append("video", file);
+      formData.append("user_email", getUserEmail());
+
+      try {
+        const response = await axiosPrivate.post(
+          "/video/upload-video",
+          formData,
+          {
+            headers: {
+              "Content-Type": "multipart/form-data",
+            },
+          }
+        );
+        if (response.status === 200) {
+          getVideoHistory();
+          toast({
+            description: "Video uploaded successfully!",
+          });
+        }
+      } catch (error) {
+        console.error("Error uploading video:", error);
+        toast({
+          variant: "destructive",
+          title: "Error uploading video.",
+          description: error.response.data.detail
+            ? error.response.data.detail
+            : "An error occurred.",
+        });
+      } finally {
+        setUploadLoading(false);
+      }
+    }
+  };
+
   return (
     <>
       <div className="flex-1 flex space-x-4">
@@ -120,6 +177,39 @@ const TextToVideo = () => {
                     )}
                   </span>
                 </label>
+                <input
+                  type="file"
+                  accept=".mp4,.mov,.avi"
+                  onChange={handleVideoUpload}
+                  className="hidden"
+                  id="video-upload"
+                />
+                <label
+                  htmlFor="video-upload"
+                  className="rounded-full px-4 py-2 border border-gray-200 hover:bg-gray-50 flex items-center cursor-pointer"
+                >
+                  <span className="text-sm whitespace-nowrap">
+                    {uploadLoading ? (
+                      <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-black"></div>
+                    ) : (
+                      "Upload a video"
+                    )}
+                  </span>
+                </label>
+                <Select onValueChange={(value) => {
+                  setSelectedVideo(value);
+                }}>
+                  <SelectTrigger className="rounded-full w-[200px] px-4 py-2 border border-gray-200 hover:bg-gray-50 flex items-center">
+                    <SelectValue placeholder="Choose from video history" />
+                  </SelectTrigger>
+                  <SelectContent className="max-w-[300px] overflow-y-auto">
+                    {videoHistory.map((video) => (
+                      <SelectItem value={video.video_id} key={video.video_id} className="whitespace-wrap">
+                        {video.file_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <button className="rounded-full px-6 py-2 bg-black text-white hover:bg-gray-800 flex items-center space-x-2">
                 <span className="text-sm">Lip Sync</span>
