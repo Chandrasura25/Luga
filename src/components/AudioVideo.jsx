@@ -6,9 +6,7 @@ import { useAuth } from "../components/auth";
 import {
   Select,
   SelectContent,
-  SelectGroup,
   SelectItem,
-  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "../components/ui/select";
@@ -18,6 +16,7 @@ const TextToVideo = () => {
   const { getUserEmail } = useAuth();
   const [uploadLoading, setUploadLoading] = useState(false);
   const [audioHistory, setAudioHistory] = useState([]);
+  const [selectedAudio, setSelectedAudio] = useState(null);
   const getAudioHistory = async () => {
     try {
       const response = await axiosPrivate.post("/video/get-audio", {
@@ -89,13 +88,15 @@ const TextToVideo = () => {
             {/* Buttons */}
             <div className="flex items-center justify-between mt-6 space-x-4">
               <div className="flex space-x-4">
-                <Select>
-                  <SelectTrigger>
+                <Select onValueChange={(value) => {
+                  setSelectedAudio(value);
+                }}>
+                  <SelectTrigger className="rounded-full w-[200px] px-4 py-2 border border-gray-200 hover:bg-gray-50 flex items-center">
                     <SelectValue placeholder="Choose from audio history" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-w-[300px] overflow-y-auto">
                     {audioHistory.map((audio) => (
-                      <SelectItem value={audio.audio_id} key={audio.audio_id}>
+                      <SelectItem value={audio.audio_id} key={audio.audio_id} className="whitespace-wrap">
                         {audio.audio_url}
                       </SelectItem>
                     ))}
