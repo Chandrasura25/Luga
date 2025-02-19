@@ -170,8 +170,11 @@ async def get_video(user_email: str = Body(..., embed=True)):
 
 @router.post("/sync-audio", response_model=VideoProcessedResponse)
 async def sync_audio(request: SyncAudioRequest):
+    user = await database.find_user_by_email(request.user_email)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
     video_record = await database.db.videos.find_one({
-        "user_id": request.user_id, 
+        "user_id": str(user["_id"]),
         "video_id": request.video_id
     })
     
@@ -179,7 +182,7 @@ async def sync_audio(request: SyncAudioRequest):
         raise HTTPException(status_code=404, detail="No video found for this user and video ID")
 
     audio_record = await database.db.audios.find_one({
-        "user_id": request.user_id,
+        "user_id": str(user["_id"]),
         "audio_id": request.audio_id
     })
 
@@ -210,13 +213,21 @@ async def sync_audio(request: SyncAudioRequest):
             )
         if not audio_url:
             raise HTTPException(status_code=500, detail="Failed to get audio URL")
-
+        print(audio_url, video_url)
         sync_result = video_service.sync_audio_with_video(
             audio_url=audio_url,
             video_url=video_url,
             model=request.model,
             webhook_url=request.webhook_url
         )
+        if not sync_result:
+            raise HTTPException(status_code=500, detail="Failed to sync audio")
+        # Convert any bytes in sync_result to strings to avoid JSON serialization issues
+        sync_result = {
+         k: (v.decode("utf-8") if isinstance(v, bytes) else v) 
+         for k, v in sync_result.items()
+        }
+        print(sync_result)
 
         sync_record = {
             "user_id": request.user_id,
@@ -241,6 +252,7 @@ async def sync_audio(request: SyncAudioRequest):
         )
 
     except Exception as e:
+        print(e)
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/job/{user_id}/{video_id}", response_model=JobStatusResponse)
