@@ -281,6 +281,9 @@ const ChatbotInterface = () => {
                   )}
                 </div>
               </div>
+              <p className="text-gray-500 text-sm">
+              Message Luga AI (Enter to send)
+              </p>
             </div>
 
             {/* Right Sidebar - Recent Chats */}
