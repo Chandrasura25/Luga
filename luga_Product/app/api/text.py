@@ -5,19 +5,15 @@ from app.services.text_service import generate_response
 from app.db.database import database
 from pymongo import DESCENDING
 from datetime import datetime
+from fastapi import Body
 
 router = APIRouter()
-async def notify_user(email: str, message: str):
-    # TODO: Implement notification logic (e.g., send email, push notification)
-    #send email to user
-    
-    pass
 
 @router.post("/generate", response_model=TextResponse)
 async def create_prompt(prompt: TextCreate):
     user = await database.find_user_by_email(prompt.user_email)
     if not user or user.get("text_quota", 0) == 0:
-        raise HTTPException(status_code=403, detail="Insufficient quota")
+        raise HTTPException(status_code=403, detail="Insufficient quota, please upgrade your plan")
 
     try:
         response_text = await generate_response(prompt.prompt)
@@ -25,7 +21,8 @@ async def create_prompt(prompt: TextCreate):
         prompt_data = {
             "prompt": prompt.prompt,
             "response": response_text,
-            "timestamp": datetime.utcnow()
+            "timestamp": datetime.utcnow(),
+            "user_id": str(user["_id"])
         }
         await database.db.text.insert_one(prompt_data)
 
@@ -36,7 +33,7 @@ async def create_prompt(prompt: TextCreate):
             )
 
             if user.get("text_quota", 0) <= 10:  # Notify when quota is low
-                await notify_user(prompt.user_email, "Your text quota is running low.")
+                raise HTTPException(status_code=403, detail="Your text quota is running low.")
 
         return {"prompt": prompt.prompt, "response": response_text}
     
@@ -64,15 +61,15 @@ async def create_prompt(prompt: TextCreate):
 #         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/history", response_model=List[TextResponse])
-async def get_history(email: str):
+async def get_history(user_email: str = Body(..., embed=True)): 
     try:
         # Tìm người dùng theo email
-        user = await database.find_user_by_email(email)
+        user = await database.find_user_by_email(user_email)
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
 
         # Lấy lịch sử các prompt từ cơ sở dữ liệu
-        prompts = await database.db.text.find({"user_email": email}).sort("timestamp", DESCENDING).to_list(100)
+        prompts = await database.db.text.find({"email": user_email}).sort("timestamp", DESCENDING).to_list(100)
         return [
             {"prompt": item["prompt"], "response": item["response"]}
             for item in prompts
