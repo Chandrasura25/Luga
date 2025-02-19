@@ -132,12 +132,13 @@ async def get_audio(file_name: str):
 # Route upload giọng nói
 @router.post("/upload-voice/", response_model=VoiceUploadResponse)
 async def upload_voice(
-    user_id: str,
+    user_email: str,
     file: UploadFile = File(None),
     voice_id: str = None,
     service: ElevenLabsService = Depends(get_eleven_labs_service)
 ):
     try:
+        user = await database.find_user_by_email(user_email)
         if file and file.filename:  # Ensure file is provided and has a name
             if not file.content_type.startswith("audio/"):
                 raise HTTPException(
@@ -147,7 +148,7 @@ async def upload_voice(
 
             file_location = os.path.join(
                 AUDIO_FILES_DIR, 
-                f"{user_id}_{str(ObjectId())}.mp3"
+                f"{user['_id']}_{str(ObjectId())}.mp3"
             )
             
             try:
@@ -169,13 +170,13 @@ async def upload_voice(
 
             voice_id = str(ObjectId())
             await database.db.voice.insert_one({
-                "user_id": user_id,
+                "user_id": user['_id'],
                 "voice_id": voice_id,
                 "file_location": file_location
             })
 
             return VoiceUploadResponse(
-                user_id=user_id,
+                user_id=user['_id'],
                 voice_id=voice_id,
                 message="Voice file uploaded successfully."
             )
@@ -185,13 +186,13 @@ async def upload_voice(
                 raise HTTPException(status_code=400, detail="Invalid voice ID.")
 
             await database.db.voice.update_one(
-                {"user_id": user_id},
+                {"user_id": user['_id']},
                 {"$set": {"voice_id": voice_id}},
                 upsert=True
             )
 
             return VoiceUploadResponse(
-                user_id=user_id,
+                user_id=user['_id'],
                 voice_id=voice_id,
                 message="Preselected voice set successfully."
             )
@@ -208,11 +209,12 @@ async def upload_voice(
 
 # Route upload document và trích xuất text
 @router.post("/upload-document/", response_model=DocumentResponse)
-async def upload_document(user_id: str, file: UploadFile = File(...)):
+async def upload_document(user_email: str, file: UploadFile = File(...)):
     """
     Upload a document (.docx, .txt, or .pdf) and extract text from it.
     The extracted text can then be used for TTS.
     """
+    user = await database.find_user_by_email(user_email)
     if file.content_type == "text/plain":
         content = await file.read()
         text = content.decode("utf-8")
@@ -232,4 +234,4 @@ async def upload_document(user_id: str, file: UploadFile = File(...)):
     else:
         raise HTTPException(status_code=400, detail="Unsupported file type. Please upload a .docx, .txt, or .pdf file.")
 
-    return DocumentResponse(user_id=user_id, text=text)
+    return DocumentResponse(user_id=user['_id'], text=text)
