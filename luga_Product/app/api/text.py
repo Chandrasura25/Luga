@@ -16,8 +16,8 @@ async def notify_user(email: str, message: str):
 @router.post("/generate", response_model=TextResponse)
 async def create_prompt(prompt: TextCreate):
     user = await database.find_user_by_email(prompt.user_email)
-    if not user or user.get("text_quota", 0) == 0:
-        raise HTTPException(status_code=403, detail="Insufficient quota")
+    # if not user or user.get("text_quota", 0) == 0:
+    #     raise HTTPException(status_code=403, detail="Insufficient quota")
 
     try:
         response_text = await generate_response(prompt.prompt)
