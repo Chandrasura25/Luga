@@ -101,10 +101,6 @@ const TextToVideo = () => {
                     ))}
                   </SelectContent>
                 </Select>
-
-                {/* <button className="rounded-full px-4 py-2 border border-gray-200 hover:bg-gray-50 flex items-center space-x-2">
-                  <span className="text-sm">Choose from audio history</span>
-                </button> */}
                 <input
                   type="file"
                   accept=".mp3,.wav,.m4a"
@@ -124,9 +120,6 @@ const TextToVideo = () => {
                     )}
                   </span>
                 </label>
-                {/* <button className="rounded-full px-4 py-2 border border-gray-200 hover:bg-gray-50 flex items-center space-x-2">
-                  <span className="text-sm">Upload an audio</span>
-                </button> */}
               </div>
               <button className="rounded-full px-6 py-2 bg-black text-white hover:bg-gray-800 flex items-center space-x-2">
                 <span className="text-sm">Lip Sync</span>
