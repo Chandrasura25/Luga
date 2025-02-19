@@ -16,40 +16,42 @@ class SyncLabsVideoService:
         webhook_url: str = None
     ):
         endpoint = f"{self.base_url}/generate"
-        
+
         headers = {
             "Content-Type": "application/json",
             "x-api-key": self.api_key
         }
+
+        # Ensure URLs are strings, not bytes
+        video_url = video_url.decode("utf-8") if isinstance(video_url, bytes) else video_url
+        audio_url = audio_url.decode("utf-8") if isinstance(audio_url, bytes) else audio_url
+
+        # Construct payload
         payload = {
             "model": model,
             "input": [
-                {
-                    "type": "video",
-                    "url": video_url
-                },
-                {
-                    "type": "audio",
-                    "url": audio_url
-                }
+                {"type": "video", "url": video_url},
+                {"type": "audio", "url": audio_url}
             ],
-            "options": {
-                "output_format": "mp4"
-            }
+            "options": {"output_format": "mp4"}
         }
-        
+
         if webhook_url:
-            payload["webhookUrl"] = webhook_url
+            payload["webhookUrl"] = webhook_url  # Only add if provided
 
         try:
+            print(payload)
             response = requests.post(endpoint, json=payload, headers=headers)
             response.raise_for_status()
             return response.json()
         except requests.RequestException as e:
+            error_message = f"RequestException: {str(e)}"
             if e.response is not None:
-                error_message = f"Error {e.response.status_code}: {e.response.text}"
-            else:
-                error_message = str(e)
+                try:
+                    error_data = e.response.json()
+                    error_message += f" | API Response: {error_data}"
+                except ValueError:
+                    error_message += f" | API Response (non-JSON): {e.response.text}"
             raise HTTPException(status_code=400, detail=error_message)
 
     def get_job_status(self, job_id: str):
@@ -68,9 +70,11 @@ class SyncLabsVideoService:
                 raise HTTPException(status_code=404, detail=f"Job with id {job_id} not found")
             elif response.status_code == 401:
                 raise HTTPException(status_code=401, detail="Unauthorized. Check your API key")
+            elif response.status_code == 402:
+                raise HTTPException(status_code=402, detail="Payment required. Check your credits")
             else:
-                raise HTTPException(status_code=response.status_code, detail=str(http_err))
+                raise HTTPException(status_code=response.status_code, detail=f"400: {str(http_err)}")
         except requests.RequestException as req_err:
-            raise HTTPException(status_code=500, detail=str(req_err))
+            raise HTTPException(status_code=500, detail=f"500: {str(req_err)}")
         except Exception as e:
-            raise HTTPException(status_code=500, detail=str(e))
+            raise HTTPException(status_code=500, detail=f"500: {str(e)}")
