@@ -75,7 +75,7 @@ class VideoProcessedResponse(BaseModel):
 
 class SyncAudioRequest(BaseModel):
     audio_id: str
-    user_id: str
+    user_email: str
     video_id: str
     model: str = "lipsync-1.7.1"  
     output_format: str = "mp4"  
