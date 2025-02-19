@@ -47,7 +47,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const getUserEmail = (): string | null => {
     const token = localStorage.getItem("access_token");
     if (!token) {
-      toast.error("You must be logged in to subscribe.");
       return null;
     }
 
