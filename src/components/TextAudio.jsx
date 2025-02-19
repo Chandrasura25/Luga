@@ -199,10 +199,11 @@ const TextAudio = () => {
   }, [playbackRate, playingIndex]);
 
   return (
-    <div className="flex-1 flex space-x-4">
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col bg-white rounded-2xl overflow-hidden shadow-sm">
-        <div className="flex-1 p-8 flex flex-col">
+    <>
+      <div className="flex-1 flex space-x-4">
+        {/* Main Content Area */}
+        <div className="flex-1 flex flex-col bg-white rounded-2xl overflow-hidden shadow-sm">
+          <div className="flex-1 p-8 flex flex-col">
           {/* Text Input Area */}
           <div className="flex-1">
             <textarea
@@ -391,6 +392,7 @@ const TextAudio = () => {
         )}
       </div>
     </div>
+    </>
   );
 };
 
