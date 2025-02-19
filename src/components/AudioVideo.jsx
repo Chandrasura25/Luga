@@ -20,7 +20,7 @@ const TextToVideo = () => {
   const [videoHistory, setVideoHistory] = useState([]);
   const [selectedAudio, setSelectedAudio] = useState(null);
   const [selectedVideo, setSelectedVideo] = useState(null);
-
+  const [lipSyncLoading, setLipSyncLoading] = useState(false);
   const getAudioHistory = async () => {
     try {
       const response = await axiosPrivate.post("/video/get-audio", {
@@ -125,7 +125,57 @@ const TextToVideo = () => {
       }
     }
   };
-  console.log(videoHistory);
+  const handleLipSync = async () => {
+    if (!selectedAudio || !selectedVideo) {
+      toast({
+        variant: "destructive",
+        title: "Error syncing audio.",
+        description: "Please select an audio and video.",
+      });
+      return;
+    }
+    if (lipSyncLoading) {
+      toast({
+        variant: "destructive",
+        title: "Error syncing audio.",
+        description: "Please wait for the previous sync to complete.",
+      });
+      return;
+    }
+    if (!selectedVideo) {
+      toast({
+        variant: "destructive",
+        title: "Error syncing audio.",
+        description: "Please select a video.",
+      });
+      return;
+    }
+    setLipSyncLoading(true);
+    try {
+      const response = await axiosPrivate.post("/video/sync-audio", {
+        user_email: getUserEmail(),
+        audio_id: selectedAudio,
+        video_id: selectedVideo,
+      });
+      if (response.status === 200) {
+        getVideoHistory();
+        toast({
+          description: "Audio synced successfully!",
+        });
+      }
+    } catch (error) {
+      console.error("Error syncing audio:", error);
+      toast({
+        variant: "destructive",
+        title: "Error syncing audio.",
+        description: error.response.data.detail
+          ? error.response.data.detail
+          : "An error occurred.",
+      });
+    } finally {
+      setLipSyncLoading(false);
+    }
+  };
   return (
     <>
       <div className="flex-1 flex space-x-4">
@@ -145,15 +195,21 @@ const TextToVideo = () => {
             {/* Buttons */}
             <div className="flex items-center justify-between mt-6 space-x-4">
               <div className="flex space-x-4">
-                <Select onValueChange={(value) => {
-                  setSelectedAudio(value);
-                }}>
+                <Select
+                  onValueChange={(value) => {
+                    setSelectedAudio(value);
+                  }}
+                >
                   <SelectTrigger className="rounded-full w-[200px] px-4 py-2 border border-gray-200 hover:bg-gray-50 flex items-center">
                     <SelectValue placeholder="Choose from audio history" />
                   </SelectTrigger>
                   <SelectContent className="max-w-[300px] overflow-y-auto">
                     {audioHistory.map((audio) => (
-                      <SelectItem value={audio.audio_id} key={audio.audio_id} className="whitespace-wrap">
+                      <SelectItem
+                        value={audio.audio_id}
+                        key={audio.audio_id}
+                        className="whitespace-wrap"
+                      >
                         {audio.file_name}
                       </SelectItem>
                     ))}
@@ -197,22 +253,31 @@ const TextToVideo = () => {
                     )}
                   </span>
                 </label>
-                <Select onValueChange={(value) => {
-                  setSelectedVideo(value);
-                }}>
+                <Select
+                  onValueChange={(value) => {
+                    setSelectedVideo(value);
+                  }}
+                >
                   <SelectTrigger className="rounded-full w-[200px] px-4 py-2 border border-gray-200 hover:bg-gray-50 flex items-center">
                     <SelectValue placeholder="Choose from video history" />
                   </SelectTrigger>
                   <SelectContent className="max-w-[300px] overflow-y-auto">
                     {videoHistory.map((video) => (
-                      <SelectItem value={video.video_id} key={video.video_id} className="whitespace-wrap">
+                      <SelectItem
+                        value={video.video_id}
+                        key={video.video_id}
+                        className="whitespace-wrap"
+                      >
                         {video.file_name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-              <button className="rounded-full px-6 py-2 bg-black text-white hover:bg-gray-800 flex items-center space-x-2">
+              <button
+                className="rounded-full px-6 py-2 bg-black text-white hover:bg-gray-800 flex items-center space-x-2"
+                onClick={handleLipSync}
+              >
                 <span className="text-sm">Lip Sync</span>
               </button>
             </div>
