@@ -23,9 +23,20 @@ const ChatbotInterface = () => {
   const [isLevelOpen, setIsLevelOpen] = useState(false);
   const [isLanguageOpen, setIsLanguageOpen] = useState(false);
   const [activeView, setActiveView] = useState("chat");
+  const [isLoading, setIsLoading] = useState(false);  
   const { getUserEmail } = useAuth();
   const levels = ["Advanced", "Balanced", "Basic"];
   const languages = ["Arabic", "Spanish", "French", "Chinese", "English"];
+  const [chatHistory, setChatHistory] = useState([
+    {
+      type: "user",
+      text: "Draft an email to my recruiter to accept the Social Media Manager job offer and negotiate a later start date",
+    },
+    {
+      type: "bot",
+      text: `Dear [Recruiter's Name], I am writing to express my sincere gratitude for the opportunity to join [Company Name] as the Social Media Manager. I am thrilled to accept this position and look forward to contributing my skills and expertise to the team. While I am eager to begin, I would like to request a later start date of [Desired Start Date]. This would allow me to [Reason for requesting a later start date, e.g., "complete my current project," "transition smoothly from my current role," or "handle personal commitments"]. I understand that this might require some adjustment, and I am open to discussing alternative options or accommodations that would work for both of us. Thank you for your understanding and flexibility.`,
+    },
+  ]);
 
   const handleLevelSelect = (level) => {
     setSelectedLevel(level);
@@ -71,18 +82,30 @@ const ChatbotInterface = () => {
     "Video Editing Community",
     "Hi Response Summary",
   ];
+
   const sendMessage = async () => {
     try {
+      setIsLoading(true);
       const userEmail = getUserEmail();
       const prompt = {
         prompt: message,
         user_email: userEmail,
       };
+      setChatHistory((prev) => [
+        ...prev,
+        { type: "user", text: message },
+      ]);
+      setMessage("");
       const response = await axios.post("/text/generate", prompt);
-      console.log(response.data);
+      setChatHistory((prev) => [
+        ...prev,
+        { type: "bot", text: response.data },
+      ]);
     } catch (error) {
-      toast.error( error.response.data.detail);
+      toast.error(error.response.data.detail);
       console.error("Error sending message:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -205,41 +228,27 @@ const ChatbotInterface = () => {
 
               {/* Messages Area */}
               <div className="flex-1 overflow-y-auto p-4">
-                <div className="flex items-start space-x-3 mb-6">
-                  <div className="w-8 h-8 rounded-full bg-gray-200" />
-                  <div className="flex-1">
-                    <div className="bg-gray-100 rounded-2xl p-4 inline-block max-w-3xl">
-                      <p className="text-gray-900 text-left">
-                        Draft an email to my recruiter to accept the Social
-                        Media Manager job offer and negotiate a later start date
-                      </p>
+                {chatHistory.map((chat, index) => (
+                  <div
+                    key={index}
+                    className={`flex items-start space-x-3 mb-6 ${
+                      chat.type === "user" ? "justify-end" : ""
+                    }`}
+                  >
+                    <div className="w-8 h-8 rounded-full bg-gray-200" />
+                    <div className="flex-1">
+                      <div
+                        className={`${
+                          chat.type === "user"
+                            ? "bg-blue-100 text-right"
+                            : "bg-gray-100 text-left"
+                        } rounded-2xl p-4 inline-block max-w-3xl`}
+                      >
+                        <p className="text-gray-900">{chat.text}</p>
+                      </div>
                     </div>
                   </div>
-                </div>
-
-                <div className="flex items-start space-x-3">
-                  <div className="w-8 h-8 rounded-full bg-gray-200" />
-                  <div className="flex-1">
-                    <div className="inline-block max-w-3xl">
-                      <p className="text-gray-900 text-left whitespace-pre-line">
-                        Dear [Recruiter&apos;s Name], I am writing to express my
-                        sincere gratitude for the opportunity to join [Company
-                        Name] as the Social Media Manager. I am thrilled to
-                        accept this position and look forward to contributing my
-                        skills and expertise to the team. While I am eager to
-                        begin, I would like to request a later start date of
-                        [Desired Start Date]. This would allow me to [Reason for
-                        requesting a later start date, e.g., &quot;complete my
-                        current project,&quot; &quot;transition smoothly from my
-                        current role,&quot; or &quot;handle personal
-                        commitments&quot;]. I understand that this might require
-                        some adjustment, and I am open to discussing alternative
-                        options or accommodations that would work for both of
-                        us. Thank you for your understanding and flexibility.
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                ))}
               </div>
 
               {/* Input Area */}
@@ -257,6 +266,19 @@ const ChatbotInterface = () => {
                     }}
                     className="w-full p-4 pr-12 rounded-lg border focus:outline-none focus:border-gray-400"
                   />
+                  {isLoading ? (
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                      <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-gray-900"></div>
+                    </div>
+                  ) : (
+                    <button
+                    onClick={sendMessage}
+                    disabled={isLoading}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-blue-500 text-white px-4 py-2 rounded-lg"
+                    >
+                      {isLoading ? <span className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-gray-900"></span> : "Send"}
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
