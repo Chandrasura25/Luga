@@ -150,12 +150,12 @@ const HomePage = () => {
           <div className="mt-10">
             <div
               onClick={() => {
-                {
-                  userEmail
-                    ? navigate("/demo")
-                    : toast({
-                        description: "Please register an account with us",
-                      });
+                if (userEmail) {
+                  navigate("/demo");
+                } else {
+                  toast({
+                    description: "Please register an account with us",
+                  });
                   navigate("/register");
                 }
               }}
