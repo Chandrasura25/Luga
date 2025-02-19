@@ -68,7 +68,6 @@ const TextToVideo = () => {
       }
     }
   };
-  console.log(audioHistory);
   return (
     <>
       <div className="flex-1 flex space-x-4">
@@ -97,7 +96,7 @@ const TextToVideo = () => {
                   <SelectContent className="max-w-[300px] overflow-y-auto">
                     {audioHistory.map((audio) => (
                       <SelectItem value={audio.audio_id} key={audio.audio_id} className="whitespace-wrap">
-                        {audio.audio_url}
+                        {audio.file_name}
                       </SelectItem>
                     ))}
                   </SelectContent>
