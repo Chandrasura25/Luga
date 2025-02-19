@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Settings,
   User,
@@ -37,7 +37,18 @@ const ChatbotInterface = () => {
       text: `Dear [Recruiter's Name], I am writing to express my sincere gratitude for the opportunity to join [Company Name] as the Social Media Manager. I am thrilled to accept this position and look forward to contributing my skills and expertise to the team. While I am eager to begin, I would like to request a later start date of [Desired Start Date]. This would allow me to [Reason for requesting a later start date, e.g., "complete my current project," "transition smoothly from my current role," or "handle personal commitments"]. I understand that this might require some adjustment, and I am open to discussing alternative options or accommodations that would work for both of us. Thank you for your understanding and flexibility.`,
     },
   ]);
-
+  const getHistory = async () => {
+    try {
+      const userEmail = getUserEmail();
+      const response = await axios.post("/text/history", { user_email: userEmail });
+      setChatHistory(response.data);
+    } catch (error) {
+      console.error("Error getting history:", error);
+    }
+  };
+  useEffect(() => {
+    getHistory();
+  }, []);
   const handleLevelSelect = (level) => {
     setSelectedLevel(level);
     setIsLevelOpen(false);
@@ -94,7 +105,7 @@ const ChatbotInterface = () => {
       setChatHistory((prev) => [...prev, { type: "user", text: message }]);
       setMessage("");
       const response = await axios.post("/text/generate", prompt);
-      setChatHistory((prev) => [...prev, { type: "bot", text: response.data }]);
+      setChatHistory((prev) => [...prev, { type: "bot", text: response.data.response }]);
     } catch (error) {
       toast.error(error.response.data.detail);
       console.error("Error sending message:", error);
@@ -227,25 +238,34 @@ const ChatbotInterface = () => {
               {/* Messages Area */}
               <div className="flex-1 overflow-y-auto p-4">
                 {chatHistory.map((chat, index) => (
-                  <div
-                    key={index}
-                    className={`flex items-start space-x-3 mb-6 ${
-                      chat.type === "user" ? "justify-end" : ""
-                    }`}
-                  >
-                    <div className="w-8 h-8 rounded-full bg-gray-200" />
-                    <div className="flex-1">
-                      <div
-                        className={`${
-                          chat.type === "user"
-                            ? "bg-blue-100 text-right"
-                            : "bg-gray-100 text-left"
-                        } rounded-2xl p-4 inline-block max-w-3xl`}
-                      >
-                        <p className="text-gray-900">{chat.text}</p>
+                  <>
+                  <div key={index}>
+                    {chat.type === "user" && (
+                       <div className="flex items-start space-x-3 mb-6">
+                       <div className="w-8 h-8 rounded-full bg-gray-200" />
+                       <div className="flex-1">
+                         <div className="bg-gray-100 rounded-2xl p-4 inline-block max-w-3xl">
+                           <p className="text-gray-900 text-left">
+                             {chat.text}
+                           </p>
+                         </div>
+                       </div>
+                     </div>
+                    )}
+                    {chat.type === "bot" && (
+                      <div className="flex items-start space-x-3 mb-4">
+                      <div className="w-8 h-8 rounded-full bg-gray-200" />
+                      <div className="flex-1">
+                        <div className="inline-block max-w-3xl">
+                          <p className="text-gray-900 text-left whitespace-pre-line">
+                          {chat.text}
+                        </p>
+                        </div>
                       </div>
                     </div>
+                    )}
                   </div>
+                  </>
                 ))}
               </div>
 
