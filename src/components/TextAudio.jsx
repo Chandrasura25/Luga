@@ -13,6 +13,17 @@ import {
 } from "../components/ui/select";
 import { useAuth } from "./auth";
 import { Slider } from "../components/ui/slider";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "../components/ui/alert-dialog";
 
 const TextAudio = () => {
   const { getUserEmail } = useAuth();
@@ -28,7 +39,7 @@ const TextAudio = () => {
   const [playbackRate, setPlaybackRate] = useState(1);
   const [playingIndex, setPlayingIndex] = useState(null);
   const [editingIndex, setEditingIndex] = useState(null);
-
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
   const fetchVoices = async () => {
     try {
       setLoading(true);
@@ -235,8 +246,13 @@ const TextAudio = () => {
                   </SelectGroup>
                 </SelectContent>
               </Select>
-              <button className="rounded-full px-4 py-2 border border-gray-200 hover:bg-gray-50 flex items-center">
-                <span className="text-sm">Upload your text</span>
+              <button
+                className="rounded-full px-4 py-2 border border-gray-200 hover:bg-gray-50 flex items-center"
+                onClick={() => setIsUploadOpen(true)}
+              >
+                <span className="text-sm whitespace-nowrap">
+                  Upload your text
+                </span>
               </button>
             </div>
             <button
