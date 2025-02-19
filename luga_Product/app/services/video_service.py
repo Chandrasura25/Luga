@@ -21,7 +21,6 @@ class SyncLabsVideoService:
             "Content-Type": "application/json",
             "x-api-key": self.api_key
         }
-        
         payload = {
             "model": model,
             "input": [
