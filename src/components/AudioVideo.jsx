@@ -8,13 +8,13 @@ const TextToVideo = () => {
   const [text, setText] = useState("");
   const { getUserEmail } = useAuth();
   const [uploadLoading, setUploadLoading] = useState(false);
-  
+
   const handleFileUpload = async (event) => {
     setUploadLoading(true);
     const file = event.target.files[0];
     if (file) {
       const formData = new FormData();
-      formData.append("audio", "file");
+      formData.append("audio", file); // Corrected to append the actual file object
       formData.append("user_email", getUserEmail());
   
       try {
