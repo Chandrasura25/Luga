@@ -15,6 +15,7 @@ const TextToVideo = () => {
   const [text, setText] = useState("");
   const { getUserEmail } = useAuth();
   const [uploadLoading, setUploadLoading] = useState(false);
+  const [videoLoading, setVideoLoading] = useState(false);
   const [audioHistory, setAudioHistory] = useState([]);
   const [videoHistory, setVideoHistory] = useState([]);
   const [selectedAudio, setSelectedAudio] = useState(null);
@@ -87,7 +88,7 @@ const TextToVideo = () => {
   };
 
   const handleVideoUpload = async (event) => {
-    setUploadLoading(true);
+    setVideoLoading(true);
     const file = event.target.files[0];
     if (file) {
       const formData = new FormData();
@@ -120,11 +121,11 @@ const TextToVideo = () => {
             : "An error occurred.",
         });
       } finally {
-        setUploadLoading(false);
+        setVideoLoading(false);
       }
     }
   };
-
+  console.log(videoHistory);
   return (
     <>
       <div className="flex-1 flex space-x-4">
@@ -189,7 +190,7 @@ const TextToVideo = () => {
                   className="rounded-full px-4 py-2 border border-gray-200 hover:bg-gray-50 flex items-center cursor-pointer"
                 >
                   <span className="text-sm whitespace-nowrap">
-                    {uploadLoading ? (
+                    {videoLoading ? (
                       <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-black"></div>
                     ) : (
                       "Upload a video"
