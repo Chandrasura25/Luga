@@ -32,58 +32,56 @@ async def get_placeholder_image(width: int, height: int):
 @router.post("/upload-audio", response_model=AudioUploadResponse)
 async def upload_audio(
     audio: UploadFile = File(...),
-    user_email: str = Form(...)
+    user_id: str = Form(...)
 ):
     try:
-        print(user_email, audio)
-        # user = await database.find_user_by_email(user_email)
+        if not audio.content_type.startswith('audio/'):
+            raise HTTPException(status_code=400, detail="Invalid file type. Please upload an audio file.")
+
+        audio_upload_result = {}
+        if Config.S3_PROVIDER == "BAIDU":
+            audio_upload_result = await upload_file_to_baidu_bos(audio, folder="audios")
+        else:
+            audio_upload_result = await upload_file_to_cloudinary(audio, folder="audios")
         
-        # if not audio.content_type.startswith('audio/'):
-        #     raise HTTPException(status_code=400, detail="Invalid file type. Please upload an audio file.")
+        audio_id = str(ObjectId())
+        audio_record = {
+            "user_id": user_id,
+            "audio_id": audio_id,
+            # "public_id": audio_upload_result['public_id'],
+            # "format": audio_upload_result['format'],
+            # "resource_type": audio_upload_result['resource_type'],
+            "created_at": datetime.utcnow(),
+        }
+        audio_record.update(audio_upload_result)
 
-        # audio_upload_result = {}
-        # if Config.S3_PROVIDER == "BAIDU":
-        #     audio_upload_result = await upload_file_to_baidu_bos(audio, folder="audios")
-        # else:
-        #     audio_upload_result = await upload_file_to_cloudinary(audio, folder="audios")
-        
-        # audio_id = str(ObjectId())
-        # audio_record = {
-        #     "user_id": str(user["_id"]),
-        #     "audio_id": audio_id,
-        #     "created_at": datetime.utcnow(),
-        # }
-        # audio_record.update(audio_upload_result)
+        await database.db.audios.insert_one(audio_record)
 
-        # await database.db.audios.insert_one(audio_record)
+        audio_url = None
+        if Config.S3_PROVIDER == "BAIDU":
+            audio_url = get_baidu_bos_audio_url(audio_record['key'])
+        else:
+            audio_url = get_cloudinary_audio_url(
+                audio_upload_result['public_id'],
+                audio_upload_result['resource_type'],
+                audio_upload_result['format']
+            )
 
-        # audio_url = None
-        # if Config.S3_PROVIDER == "BAIDU":
-        #     audio_url = get_baidu_bos_audio_url(audio_record['key'])
-        # else:
-        #     audio_url = get_cloudinary_audio_url(
-        #         audio_upload_result['public_id'],
-        #         audio_upload_result['resource_type'],
-        #         audio_upload_result['format']
-        #     )
-
-        # return AudioUploadResponse(
-        #     user_id=str(user["_id"]),
-        #     audio_id=audio_id,
-        #     audio_url=audio_url,
-        #     message="Audio uploaded successfully"
-        # )
+        return AudioUploadResponse(
+            user_id=user_id,
+            audio_id=audio_id,
+            audio_url=audio_url,
+            message="Audio uploaded successfully"
+        )
     except Exception as e:
-        print(e)
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/upload-video/", response_model=VideoUploadResponse)
 async def upload_video(
     video: UploadFile = File(...),
-    user_email: str = Form(...)
+    user_id: str = Form(...)
 ):
     try:
-        user = await database.find_user_by_email(user_email)
         if not video.content_type.startswith('video/'):
             raise HTTPException(status_code=400, detail="Invalid file type. Please upload a video file.")
 
@@ -95,7 +93,7 @@ async def upload_video(
         
         video_id = str(ObjectId())
         video_record = {
-            "user_id": str(user["_id"]),
+            "user_id": user_id,
             "video_id": video_id,
             # "public_id": upload_result['public_id'],
             # "format": upload_result['format'],
@@ -117,7 +115,7 @@ async def upload_video(
             )
 
         return VideoUploadResponse(
-            user_id=str(user["_id"]),
+            user_id=user_id,
             video_id=video_id,
             video_url=video_url,
             message="Video uploaded successfully"
