@@ -120,27 +120,26 @@ async def upload_video(
             video_upload_result = await upload_file_to_cloudinary(video, folder="videos")
         
         video_id = str(ObjectId())
+        video_url = None
+        if Config.S3_PROVIDER == "BAIDU":
+            video_url = get_baidu_bos_video_url(video_upload_result['key'])
+        else:
+            video_url = get_cloudinary_video_url(
+                video_upload_result['public_id'], 
+                video_upload_result['resource_type'], 
+                video_upload_result['format']
+            )
+
         video_record = {
             "user_id": str(user["_id"]),
             "video_id": video_id,
-            # "public_id": upload_result['public_id'],
-            # "format": upload_result['format'],
-            # "resource_type": upload_result['resource_type'],
+            "video_url": video_url,
+            "file_name": video.filename,  # Save the file name to the database
             "created_at": datetime.utcnow(),
         }
         video_record.update(video_upload_result)
 
         await database.db.videos.insert_one(video_record)
-
-        video_url = None
-        if Config.S3_PROVIDER == "BAIDU":
-            video_url = get_baidu_bos_video_url(video_record['key'])
-        else:
-            video_url = get_cloudinary_video_url(
-                video_record['public_id'], 
-                video_record['resource_type'], 
-                video_record['format']
-            )
 
         return VideoUploadResponse(
             user_id=str(user["_id"]),
@@ -150,6 +149,23 @@ async def upload_video(
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+@router.post("/get-video", response_model=List[VideoUploadResponse])
+async def get_video(user_email: str = Body(..., embed=True)): 
+    user = await database.find_user_by_email(user_email)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    video = await database.db.videos.find({"user_id": str(user["_id"])}).sort("created_at", DESCENDING).to_list(100)
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+    return [
+        VideoUploadResponse(
+            user_id=str(user["_id"]),
+            video_id=item["video_id"],
+            video_url=item.get("video_url", ""),
+            file_name=item.get("file_name", ""),
+            message="Video fetched successfully"
+        ) for item in video
+    ]
 
 @router.post("/sync-audio", response_model=VideoProcessedResponse)
 async def sync_audio(request: SyncAudioRequest):
