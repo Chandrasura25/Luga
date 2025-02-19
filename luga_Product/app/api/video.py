@@ -61,7 +61,7 @@ async def upload_audio(
                 audio_upload_result['resource_type'],
                 audio_upload_result['format']
             )
-
+        print(audio_url)
         audio_record = {
             "user_id": str(user["_id"]),
             "audio_id": audio_id,
@@ -80,6 +80,7 @@ async def upload_audio(
             message="Audio uploaded successfully"
         )
     except Exception as e:
+        print(e)
         raise HTTPException(status_code=500, detail=str(e))
     # fetch audio from db
 @router.post("/get-audio", response_model=List[AudioUploadResponse])
@@ -95,7 +96,7 @@ async def get_audio(user_email: str = Body(..., embed=True)):
             user_id=str(user["_id"]),
             audio_id=item["audio_id"],
             audio_url=item.get("audio_url", ""),
-            file_name=item.get("file_name", ""),
+            file_name=item.get("file_name", "No file name"),
             message="Audio fetched successfully"
         ) for item in audio
     ]
