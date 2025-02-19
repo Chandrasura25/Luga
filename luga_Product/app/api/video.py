@@ -77,6 +77,7 @@ async def upload_audio(
             user_id=str(user["_id"]),
             audio_id=audio_id,
             audio_url=audio_url,
+            file_name=audio.filename,  # Ensure file_name is included in the response
             message="Audio uploaded successfully"
         )
     except Exception as e:
@@ -146,6 +147,7 @@ async def upload_video(
             user_id=str(user["_id"]),
             video_id=video_id,
             video_url=video_url,
+            file_name=video.filename,  # Ensure file_name is included in the response
             message="Video uploaded successfully"
         )
     except Exception as e:
@@ -213,48 +215,44 @@ async def sync_audio(request: SyncAudioRequest):
             )
         if not audio_url:
             raise HTTPException(status_code=500, detail="Failed to get audio URL")
-        print(audio_url, video_url)
         sync_result = video_service.sync_audio_with_video(
             audio_url=audio_url,
             video_url=video_url,
-            model=request.model,
-            webhook_url=request.webhook_url
         )
-        if not sync_result:
-            raise HTTPException(status_code=500, detail="Failed to sync audio")
-        # Convert any bytes in sync_result to strings to avoid JSON serialization issues
-        sync_result = {
-         k: (v.decode("utf-8") if isinstance(v, bytes) else v) 
-         for k, v in sync_result.items()
-        }
         print(sync_result)
+        # if not sync_result:
+        #     raise HTTPException(status_code=500, detail="Failed to sync audio")
+        # # Convert any bytes in sync_result to strings to avoid JSON serialization issues
+        # sync_result = {
+        #     k: (v.decode("utf-8") if isinstance(v, bytes) else v) 
+        #     for k, v in sync_result.items()
+        # }
 
-        sync_record = {
-            "user_id": request.user_id,
-            "video_id": request.video_id,
-            "audio_id": request.audio_id,
-            "job_id": sync_result.get("id"),
-            "status": sync_result.get("status", "processing"),
-            "sync_result": sync_result,
-            "audio_url": audio_url,
-            "video_url": video_url,
-            "created_at": datetime.utcnow(),
-            "updated_at": datetime.utcnow()
-        }
+        # sync_record = {
+        #     "user_id": request.user_id,
+        #     "video_id": request.video_id,
+        #     "audio_id": request.audio_id,
+        #     "job_id": sync_result.get("id"),
+        #     "status": sync_result.get("status", "processing"),
+        #     "sync_result": sync_result,
+        #     "audio_url": audio_url,
+        #     "video_url": video_url,
+        #     "created_at": datetime.utcnow(),
+        #     "updated_at": datetime.utcnow()
+        # }
         
-        await database.db.audio_to_video.insert_one(sync_record)
+        # await database.db.audio_to_video.insert_one(sync_record)
 
-        return VideoProcessedResponse(
-            user_id=request.user_id,
-            video_id=request.video_id,
-            sync_result=sync_result,
-            message="Audio sync job submitted successfully"
-        )
+        # return VideoProcessedResponse(
+        #     user_id=request.user_id,
+        #     video_id=request.video_id,
+        #     sync_result=sync_result,
+        #     message="Audio sync job submitted successfully"
+        # )
 
     except Exception as e:
-        print(e)
         raise HTTPException(status_code=500, detail=str(e))
-
+    
 @router.get("/job/{user_id}/{video_id}", response_model=JobStatusResponse)
 async def get_job_status(user_id: str, video_id: str):
     try:
