@@ -276,9 +276,14 @@ const TextToVideo = () => {
               </div>
               <button
                 className="rounded-full px-6 py-2 bg-black text-white hover:bg-gray-800 flex items-center space-x-2"
+                disabled={lipSyncLoading} 
                 onClick={handleLipSync}
               >
-                <span className="text-sm">Lip Sync</span>
+                {lipSyncLoading ? (
+                  <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
+                ) : (
+                  <span className="text-sm">Lip Sync</span>
+                )}
               </button>
             </div>
           </div>
