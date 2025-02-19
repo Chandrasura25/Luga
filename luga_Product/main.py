@@ -11,7 +11,8 @@ app = FastAPI(openapi_url="/openapi.json", docs_url="/docs", redoc_url="/redoc")
 @app.get("/")
 async def read_root():
     return {"message": "Welcome to the LuGaAI API"}
-
+if __name__ == "__main__": 
+    app.run(debug=True) 
 # Thêm middleware CORS
 app.add_middleware(
     CORSMiddleware,
