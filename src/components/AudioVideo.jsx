@@ -1,20 +1,45 @@
 import { useState } from "react";
 import { Play, Volume2, Maximize2, MoreVertical } from "lucide-react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "../components/ui/alert-dialog";
-
+import { useToast } from "../hooks/use-toast";
+import { axiosPrivate } from "../api/axios";
+import { useAuth } from "../components/auth";
 const TextToVideo = () => {
+  const { toast } = useToast();
   const [text, setText] = useState("");
-
+  const { getUserEmail } = useAuth();
+  const [uploadLoading, setUploadLoading] = useState(false);
+  
+  const handleFileUpload = async (event) => {
+    setUploadLoading(true);
+    const file = event.target.files[0];
+    if (file) {
+      const formData = new FormData();
+      formData.append("audio", file);
+      formData.append("user_email", getUserEmail());
+  
+      try {
+        const response = await axiosPrivate.post("/video/upload-audio", formData, {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        });
+        console.log(response.data);
+        // setText(response.data.text);
+        toast({
+          description: "Audio uploaded successfully!",
+        });
+      } catch (error) {
+        console.error("Error uploading document:", error);
+        // toast({
+        //   variant: "destructive",
+        //   title: "Error uploading audio.",
+        //   description: error.response.data.detail ? error.response.data.detail : "An error occurred.",
+        // });
+      } finally {
+        setUploadLoading(false);
+      }
+    }
+  };
   return (
     <>
       <div className="flex-1 flex space-x-4">
@@ -37,9 +62,28 @@ const TextToVideo = () => {
                 <button className="rounded-full px-4 py-2 border border-gray-200 hover:bg-gray-50 flex items-center space-x-2">
                   <span className="text-sm">Choose from audio history</span>
                 </button>
-                <button className="rounded-full px-4 py-2 border border-gray-200 hover:bg-gray-50 flex items-center space-x-2">
+                <input
+                type="file"
+                accept=".mp3,.wav,.m4a"
+                onChange={handleFileUpload}
+                className="hidden"
+                id="file-upload"
+              />
+              <label
+                htmlFor="file-upload"
+                className="rounded-full px-4 py-2 border border-gray-200 hover:bg-gray-50 flex items-center cursor-pointer"
+              >
+                <span className="text-sm whitespace-nowrap">
+                  {uploadLoading ? (
+                    <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
+                  ) : (
+                    "Upload an audio"
+                  )}
+                </span>
+              </label>
+                {/* <button className="rounded-full px-4 py-2 border border-gray-200 hover:bg-gray-50 flex items-center space-x-2">
                   <span className="text-sm">Upload an audio</span>
-                </button>
+                </button> */}
               </div>
               <button className="rounded-full px-6 py-2 bg-black text-white hover:bg-gray-800 flex items-center space-x-2">
                 <span className="text-sm">Lip Sync</span>
@@ -99,22 +143,7 @@ const TextToVideo = () => {
           </div>
         </div>
       </div>
-      <AlertDialog>
-        <AlertDialogTrigger>Open</AlertDialogTrigger>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete your
-              account and remove your data from our servers.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction>Continue</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+    
     </>
   );
 };
