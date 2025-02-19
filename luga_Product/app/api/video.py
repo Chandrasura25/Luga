@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, HTTPException, File, Form, Request
+from fastapi import APIRouter, UploadFile, HTTPException, File, Form, Request, Body
 from fastapi.responses import JSONResponse, Response
 from typing import Dict, Optional
 from bson import ObjectId
@@ -8,7 +8,10 @@ from app.db.models import AudioToVideo, VideoUploadResponse, VideoProcessedRespo
 from app.db.database import database
 from app.services.cloudinary import upload_file_to_cloudinary, get_cloudinary_video_url,get_cloudinary_audio_url
 from app.services.baidu import upload_file_to_baidu_bos, get_baidu_bos_video_url, get_baidu_bos_audio_url
+from pymongo import DESCENDING
+from typing import List
 router = APIRouter()
+
 
 from app.core.config import Config
 video_service = SyncLabsVideoService(api_key=Config.SYNCLABS_API_KEY)
@@ -29,12 +32,16 @@ async def get_placeholder_image(width: int, height: int):
 
     return Response(content=img_byte_arr, media_type="image/png")
 
-@router.post("/upload-audio/", response_model=AudioUploadResponse)
+@router.post("/upload-audio", response_model=AudioUploadResponse)
 async def upload_audio(
     audio: UploadFile = File(...),
-    user_id: str = Form(...)
+    user_email: str = Form(...)
 ):
     try:
+        user = await database.find_user_by_email(user_email)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
         if not audio.content_type.startswith('audio/'):
             raise HTTPException(status_code=400, detail="Invalid file type. Please upload an audio file.")
 
@@ -45,21 +52,9 @@ async def upload_audio(
             audio_upload_result = await upload_file_to_cloudinary(audio, folder="audios")
         
         audio_id = str(ObjectId())
-        audio_record = {
-            "user_id": user_id,
-            "audio_id": audio_id,
-            # "public_id": audio_upload_result['public_id'],
-            # "format": audio_upload_result['format'],
-            # "resource_type": audio_upload_result['resource_type'],
-            "created_at": datetime.utcnow(),
-        }
-        audio_record.update(audio_upload_result)
-
-        await database.db.audios.insert_one(audio_record)
-
         audio_url = None
         if Config.S3_PROVIDER == "BAIDU":
-            audio_url = get_baidu_bos_audio_url(audio_record['key'])
+            audio_url = get_baidu_bos_audio_url(audio_upload_result['key'])
         else:
             audio_url = get_cloudinary_audio_url(
                 audio_upload_result['public_id'],
@@ -67,21 +62,54 @@ async def upload_audio(
                 audio_upload_result['format']
             )
 
+        audio_record = {
+            "user_id": str(user["_id"]),
+            "audio_id": audio_id,
+            "audio_url": audio_url,
+            "file_name": audio.filename,  # Save the file name to the database
+            "created_at": datetime.utcnow(),
+        }
+        audio_record.update(audio_upload_result)
+
+        await database.db.audios.insert_one(audio_record)
+
         return AudioUploadResponse(
-            user_id=user_id,
+            user_id=str(user["_id"]),
             audio_id=audio_id,
             audio_url=audio_url,
             message="Audio uploaded successfully"
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    # fetch audio from db
+@router.post("/get-audio", response_model=List[AudioUploadResponse])
+async def get_audio(user_email: str = Body(..., embed=True)): 
+    user = await database.find_user_by_email(user_email)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    audio = await database.db.audios.find({"user_id": str(user["_id"])}).sort("created_at", DESCENDING).to_list(100)
+    if not audio:
+        raise HTTPException(status_code=404, detail="Audio not found")
+    return [
+        AudioUploadResponse(
+            user_id=str(user["_id"]),
+            audio_id=item["audio_id"],
+            audio_url=item.get("audio_url", ""),
+            file_name=item.get("file_name", ""),
+            message="Audio fetched successfully"
+        ) for item in audio
+    ]
 
-@router.post("/upload-video/", response_model=VideoUploadResponse)
+@router.post("/upload-video", response_model=VideoUploadResponse)
 async def upload_video(
     video: UploadFile = File(...),
-    user_id: str = Form(...)
+    user_email: str = Form(...)
 ):
     try:
+        user = await database.find_user_by_email(user_email)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
         if not video.content_type.startswith('video/'):
             raise HTTPException(status_code=400, detail="Invalid file type. Please upload a video file.")
 
@@ -93,7 +121,7 @@ async def upload_video(
         
         video_id = str(ObjectId())
         video_record = {
-            "user_id": user_id,
+            "user_id": str(user["_id"]),
             "video_id": video_id,
             # "public_id": upload_result['public_id'],
             # "format": upload_result['format'],
@@ -115,7 +143,7 @@ async def upload_video(
             )
 
         return VideoUploadResponse(
-            user_id=user_id,
+            user_id=str(user["_id"]),
             video_id=video_id,
             video_url=video_url,
             message="Video uploaded successfully"
@@ -123,7 +151,7 @@ async def upload_video(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/sync-audio/", response_model=VideoProcessedResponse)
+@router.post("/sync-audio", response_model=VideoProcessedResponse)
 async def sync_audio(request: SyncAudioRequest):
     video_record = await database.db.videos.find_one({
         "user_id": request.user_id, 
