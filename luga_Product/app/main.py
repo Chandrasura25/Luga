@@ -21,7 +21,7 @@ app.add_middleware(
 )
 
 app.include_router(voice.router, prefix="/api/voice")
-app.include_router(video.router, prefix="/api/video")
 app.include_router(text.router, prefix="/api/text")
 app.include_router(user.router, prefix="/api/user")
 app.include_router(stripe.router, prefix="/api/stripe")
+app.include_router(video.router, prefix="/api/video")
