@@ -41,6 +41,7 @@ async def create_prompt(prompt: TextCreate):
         return {"prompt": prompt.prompt, "response": response_text}
     
     except Exception as e:
+        print(e)
         raise HTTPException(status_code=500, detail=str(e))
 # @router.post("/generate", response_model=TextResponse)
 # async def create_prompt(prompt: TextCreate):
