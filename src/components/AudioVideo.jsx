@@ -14,11 +14,11 @@ const TextToVideo = () => {
     const file = event.target.files[0];
     if (file) {
       const formData = new FormData();
-      formData.append("audio", file);
+      formData.append("audio", "file");
       formData.append("user_email", getUserEmail());
   
       try {
-        const response = await axiosPrivate.post("/video/upload-audio", formData, {
+        const response = await axiosPrivate.post("/video/upload-audio/", formData, {
           headers: {
             "Content-Type": "multipart/form-data",
           },
