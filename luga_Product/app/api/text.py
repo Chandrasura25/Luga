@@ -16,8 +16,8 @@ async def notify_user(email: str, message: str):
 @router.post("/generate", response_model=TextResponse)
 async def create_prompt(prompt: TextCreate):
     user = await database.find_user_by_email(prompt.user_email)
-    # if not user or user.get("text_quota", 0) == 0:
-    #     raise HTTPException(status_code=403, detail="Insufficient quota")
+    if not user or user.get("text_quota", 0) == 0:
+        raise HTTPException(status_code=403, detail="Insufficient quota")
 
     try:
         response_text = await generate_response(prompt.prompt)
@@ -63,11 +63,16 @@ async def create_prompt(prompt: TextCreate):
 #         # Trả về lỗi nếu có
 #         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/history", response_model=List[TextResponse])
-async def get_history():
+@router.post("/history", response_model=List[TextResponse])
+async def get_history(email: str):
     try:
+        # Tìm người dùng theo email
+        user = await database.find_user_by_email(email)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
         # Lấy lịch sử các prompt từ cơ sở dữ liệu
-        prompts = await database.db.text.find().sort("timestamp", DESCENDING).to_list(100)
+        prompts = await database.db.text.find({"user_email": email}).sort("timestamp", DESCENDING).to_list(100)
         return [
             {"prompt": item["prompt"], "response": item["response"]}
             for item in prompts
