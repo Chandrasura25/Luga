@@ -15,7 +15,7 @@ import AudioVideo from "./AudioVideo";
 import axios from "../api/axios";
 import { useAuth } from "./auth";
 import { toast } from "react-toastify";
-import logo from '../assets/logo.jpeg'
+import logo from "../assets/logo.jpeg";
 const ChatbotInterface = () => {
   const [message, setMessage] = useState("");
   const [selectedLevel, setSelectedLevel] = useState("Advanced");
@@ -23,7 +23,7 @@ const ChatbotInterface = () => {
   const [isLevelOpen, setIsLevelOpen] = useState(false);
   const [isLanguageOpen, setIsLanguageOpen] = useState(false);
   const [activeView, setActiveView] = useState("chat");
-  const [isLoading, setIsLoading] = useState(false);  
+  const [isLoading, setIsLoading] = useState(false);
   const { getUserEmail } = useAuth();
   const levels = ["Advanced", "Balanced", "Basic"];
   const languages = ["Arabic", "Spanish", "French", "Chinese", "English"];
@@ -91,16 +91,10 @@ const ChatbotInterface = () => {
         prompt: message,
         user_email: userEmail,
       };
-      setChatHistory((prev) => [
-        ...prev,
-        { type: "user", text: message },
-      ]);
+      setChatHistory((prev) => [...prev, { type: "user", text: message }]);
       setMessage("");
       const response = await axios.post("/text/generate", prompt);
-      setChatHistory((prev) => [
-        ...prev,
-        { type: "bot", text: response.data },
-      ]);
+      setChatHistory((prev) => [...prev, { type: "bot", text: response.data }]);
     } catch (error) {
       toast.error(error.response.data.detail);
       console.error("Error sending message:", error);
@@ -115,7 +109,11 @@ const ChatbotInterface = () => {
       <div className="w-64 border-r flex flex-col bg-white">
         {/* Logo */}
         <div className="p-4 border-b">
-          <img src={logo} alt="logo" style={{ height: "50px", width: "auto" }} />
+          <img
+            src={logo}
+            alt="logo"
+            style={{ height: "50px", width: "auto" }}
+          />
         </div>
 
         {/* Main Navigation */}
@@ -272,18 +270,22 @@ const ChatbotInterface = () => {
                     </div>
                   ) : (
                     <button
-                    onClick={sendMessage}
-                    disabled={isLoading}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-blue-500 text-white px-4 py-2 rounded-lg"
+                      onClick={sendMessage}
+                      disabled={isLoading}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 bg-blue-500 text-white px-4 py-2 rounded-lg"
                     >
-                      {isLoading ? <span className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-gray-900"></span> : "Send"}
+                      {isLoading ? (
+                        <span className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-gray-900"></span>
+                      ) : (
+                        "Send"
+                      )}
                     </button>
                   )}
                 </div>
+                <p className="text-gray-500 font-semibold text-xs">
+                  Message Luga AI (Enter to send)
+                </p>
               </div>
-              <p className="text-gray-500 text-sm">
-              Message Luga AI (Enter to send)
-              </p>
             </div>
 
             {/* Right Sidebar - Recent Chats */}
