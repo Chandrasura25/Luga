@@ -6,6 +6,7 @@ from app.db.models import Audio, VoiceUploadResponse, DocumentResponse, TextToSp
 from bson import ObjectId
 import docx
 import PyPDF2
+from fastapi import Form
 import os
 from app.services.cloudinary import upload_audio_to_cloudinary
 from typing import List
@@ -208,8 +209,8 @@ async def upload_voice(
 
 
 # Route upload document và trích xuất text
-@router.post("/upload-document/", response_model=DocumentResponse)
-async def upload_document(user_email: str, file: UploadFile = File(...)):
+@router.post("/upload-document", response_model=DocumentResponse)
+async def upload_document(user_email: str = Form(...), file: UploadFile = File(...)):
     """
     Upload a document (.docx, .txt, or .pdf) and extract text from it.
     The extracted text can then be used for TTS.
@@ -234,4 +235,4 @@ async def upload_document(user_email: str, file: UploadFile = File(...)):
     else:
         raise HTTPException(status_code=400, detail="Unsupported file type. Please upload a .docx, .txt, or .pdf file.")
 
-    return DocumentResponse(user_id=user['_id'], text=text)
+    return DocumentResponse(user_id=str(user['_id']), text=text)
