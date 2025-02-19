@@ -29,7 +29,7 @@ async def get_placeholder_image(width: int, height: int):
 
     return Response(content=img_byte_arr, media_type="image/png")
 
-@router.post("/upload-audio", response_model=AudioUploadResponse)
+@router.post("/upload-audio/", response_model=AudioUploadResponse)
 async def upload_audio(
     audio: UploadFile = File(...),
     user_id: str = Form(...)
