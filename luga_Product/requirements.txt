@@ -13,7 +13,8 @@ cloudinary
 openai
 PyJWT
 bcrypt==4.2.1
-pillow==11.1.0
+pillow==10.4.0
 stripe==11.5.0
 pycryptodome==3.21.0
 bce-python-sdk==0.9.29
+moviepy==2.1.2
