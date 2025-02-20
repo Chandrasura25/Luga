@@ -21,6 +21,7 @@ const TextToVideo = () => {
   const [selectedVideo, setSelectedVideo] = useState(null);
   const [lipSyncLoading, setLipSyncLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [infoLoading, setInfoLoading] = useState(false);
   const [jobHistory, setJobHistory] = useState([]);
   const getAudioHistory = async () => {
     try {
@@ -190,12 +191,15 @@ const TextToVideo = () => {
   };
   const getJobInfo = async (user_id, video_id) => {
     try {
+      setInfoLoading(true);
       const response = await axiosPrivate.get(
         `/video/job/${user_id}/${video_id}`
       );
       console.log(response.data);
     } catch (error) {
       console.error("Error getting job info:", error);
+    } finally {
+      setInfoLoading(false);
     }
   };
   // Separate completed and pending jobs
@@ -229,8 +233,13 @@ const TextToVideo = () => {
                       <button
                         className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
                         onClick={() => getJobInfo(job.user_id, job.video_id)}
+                        disabled={infoLoading}
                       >
-                        Get Info
+                        {infoLoading ? (
+                          <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
+                        ) : (
+                          "Get Info"
+                        )}
                       </button>
                     </div>
                   ))}
