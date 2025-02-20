@@ -195,9 +195,17 @@ const TextToVideo = () => {
       const response = await axiosPrivate.get(
         `/video/job/${user_id}/${video_id}`
       );
-      console.log(response.data);
+      if (response.status === 200) {
+        toast({
+          description: "Job info fetched successfully!",
+        });
+      }
     } catch (error) {
       console.error("Error getting job info:", error);
+      toast({
+        variant: "destructive",
+        title: "Error getting job info.",
+      });
     } finally {
       setInfoLoading(false);
     }
