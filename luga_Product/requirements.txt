@@ -17,4 +17,3 @@ pillow==11.1.0
 stripe==11.5.0
 pycryptodome==3.21.0
 bce-python-sdk==0.9.29
-moviepy==5.1.1
