@@ -21,6 +21,7 @@ const TextToVideo = () => {
   const [selectedAudio, setSelectedAudio] = useState(null);
   const [selectedVideo, setSelectedVideo] = useState(null);
   const [lipSyncLoading, setLipSyncLoading] = useState(false);
+  const [jobHistory, setJobHistory] = useState([]);
   const getAudioHistory = async () => {
     try {
       const response = await axiosPrivate.post("/video/get-audio", {
@@ -42,10 +43,18 @@ const TextToVideo = () => {
       console.error("Error getting video history:", error);
     }
   };
-
+  const getJobHistory = async () => {
+    try {
+      const response = await axiosPrivate.get(`/video/jobs/${getUserEmail()}`);
+      setJobHistory(response.data);
+    } catch (error) {
+      console.error("Error getting job history:", error);
+    }
+  };
   useEffect(() => {
     getAudioHistory();
     getVideoHistory();
+    getJobHistory();
   }, []);
 
   const handleFileUpload = async (event) => {
