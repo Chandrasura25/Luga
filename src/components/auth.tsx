@@ -6,7 +6,6 @@ import React, {
   useEffect,
 } from "react";
 import { jwtDecode } from "jwt-decode";
-import { toast } from "react-toastify";
 
 // Define the type for the context's value
 interface AuthContextType {
@@ -14,6 +13,7 @@ interface AuthContextType {
   login: (newToken: string) => void;
   logout: () => void;
   getUserEmail: () => string | null;
+  user_id: string | null;
 }
 
 // Create the context with `null` as the default value
@@ -35,12 +35,17 @@ interface AuthProviderProps {
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [token, setToken] = useState<string | null>(null);
+  const [user_id, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
     // Check if there's a token in localStorage when the app mounts
     const savedToken = localStorage.getItem("access_token");
+    const savedUserId = localStorage.getItem("user_id");
     if (savedToken) {
       setToken(savedToken);
+    }
+    if (savedUserId) {
+      setUserId(savedUserId);
     }
   }, []);
 
@@ -61,16 +66,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = (newToken: string) => {
     localStorage.setItem("access_token", newToken); // Store the token in localStorage
-    setToken(newToken); // Set the token in context
+    setUserId(newToken); // Set the token in context
   };
 
   const logout = () => {
     localStorage.removeItem("access_token"); // Remove token from localStorage
+    localStorage.removeItem("user_id"); // Remove user_id from localStorage
     setToken(null); // Remove token from context
+    setUserId(null); // Remove user_id from context
   };
 
   return (
-    <AuthContext.Provider value={{ token, login, logout, getUserEmail }}>
+    <AuthContext.Provider value={{ token, login, logout, getUserEmail, user_id }}>
       {children}
     </AuthContext.Provider>
   );
