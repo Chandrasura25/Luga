@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { Play, Volume2, Maximize2, MoreVertical } from "lucide-react";
 import { useToast } from "../hooks/use-toast";
 import { axiosPrivate } from "../api/axios";
 import { useAuth } from "../components/auth";
