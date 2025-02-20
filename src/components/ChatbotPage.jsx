@@ -25,7 +25,10 @@ const ChatbotInterface = () => {
   const [activeView, setActiveView] = useState("chat");
   const [isLoading, setIsLoading] = useState(false);
   const { getUserEmail } = useAuth();
-  const levels = ["Advanced", "Balanced", "Basic"];
+  const levels = ["Advanced",
+    //  "Balanced",
+    //   "Basic"
+    ];
   const languages = ["Arabic", "Spanish", "French", "Chinese", "English"];
   const [chatHistory, setChatHistory] = useState([
     {
