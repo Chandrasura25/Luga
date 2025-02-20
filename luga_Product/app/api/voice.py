@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Response
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Response, BackgroundTasks
 from fastapi.responses import FileResponse
 from app.services.voice_service import ElevenLabsService
 from app.db.database import database
@@ -25,6 +25,16 @@ async def get_voices(service: ElevenLabsService = Depends()):
     Lấy danh sách các giọng nói từ Eleven Labs API.
     """
     return service.get_voices()
+
+@router.post("/notify-quota")
+async def notify_quota(user_id: str, background_tasks: BackgroundTasks):
+    user_quota = await database.db.quota.find_one({"user_id": user_id})
+    if user_quota and user_quota["audio_quota"] <= 60:  # Notify when less than 1 minute left
+        background_tasks.add_task(send_notification, user_id, "You have less than 1 minute of audio quota left.")
+    return {"message": "Notification sent"}
+
+async def send_notification(user_id: str, message: str):
+    raise HTTPException(status_code=500, detail=message)
 
 @router.post("/text-to-speech", response_model=Audio)
 async def text_to_speech(
@@ -235,3 +245,4 @@ async def upload_document(user_email: str = Form(...), file: UploadFile = File(.
         raise HTTPException(status_code=400, detail="Unsupported file type. Please upload a .docx, .txt, or .pdf file.")
 
     return DocumentResponse(user_id=str(user['_id']), text=text)
+
