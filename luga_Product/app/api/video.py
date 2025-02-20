@@ -306,11 +306,14 @@ async def get_job_status(user_id: str, video_id: str):
             detail=f"An error occurred while checking job status: {str(e)}"
         )
 
-@router.get("/jobs/{user_id}", response_model=list[JobStatusResponse])
-async def get_user_jobs(user_id: str, limit: int = 10, skip: int = 0):
+@router.get("/jobs/{user_email}", response_model=list[JobStatusResponse])
+async def get_user_jobs(user_email: str, limit: int = 10, skip: int = 0):
     try:
+        user = await database.find_user_by_email(user_email)    
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
         cursor = database.db.audio_to_video.find(
-            {"user_id": user_id}
+            {"user_id": str(user["_id"])}
         ).sort("created_at", -1).skip(skip).limit(limit)
         
         jobs = []
