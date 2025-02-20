@@ -21,6 +21,7 @@ const TextToVideo = () => {
   const [selectedAudio, setSelectedAudio] = useState(null);
   const [selectedVideo, setSelectedVideo] = useState(null);
   const [lipSyncLoading, setLipSyncLoading] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);  
   const [jobHistory, setJobHistory] = useState([]);
   const getAudioHistory = async () => {
     try {
@@ -45,10 +46,13 @@ const TextToVideo = () => {
   };
   const getJobHistory = async () => {
     try {
+      setHistoryLoading(true);
       const response = await axiosPrivate.get(`/video/jobs/${getUserEmail()}`);
       setJobHistory(response.data);
     } catch (error) {
       console.error("Error getting job history:", error);
+    } finally {
+      setHistoryLoading(false);
     }
   };
   useEffect(() => {
@@ -185,6 +189,7 @@ const TextToVideo = () => {
       setLipSyncLoading(false);
     }
   };
+  console.log(jobHistory);
   return (
     <>
       <div className="flex-1 flex space-x-4">
@@ -192,13 +197,32 @@ const TextToVideo = () => {
         <div className="flex-1 flex flex-col bg-white rounded-2xl overflow-hidden shadow-sm">
           <div className="flex-1 p-8 flex flex-col">
             {/* Text Input Area */}
-            <div className="flex-1">
-              <textarea
+            <div className="flex-1 ">
+              {/* <textarea
                 placeholder="Start typing here or paste any text you want to generate Lip Sync Video"
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 className="w-full h-[calc(100vh-240px)] p-6 border rounded-2xl resize-none focus:outline-none focus:border-gray-400 text-base text-gray-500"
-              />
+              /> */}
+              {historyLoading ? (
+                <div className="flex justify-center items-center h-full">
+                  <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-black"></div>
+                </div>
+              ) : jobHistory.length > 0 ? (
+                <div>
+                  <p>Job History</p>
+                  {jobHistory.map((job) => (
+                    <div key={job.job_id} className="border rounded-lg p-4 mb-4 shadow-sm">
+                      <p><strong>Job ID:</strong> {job.job_id}</p>
+                      <p><strong>Status:</strong> {job.status}</p>
+                      <p><strong>Created At:</strong> {job.created_at}</p>
+                      <button className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+                        Get Info
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </div>
 
             {/* Buttons */}
