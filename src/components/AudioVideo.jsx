@@ -12,7 +12,7 @@ import {
 } from "../components/ui/select";
 const TextToVideo = () => {
   const { toast } = useToast();
-  const [text, setText] = useState("");
+  // const [text, setText] = useState("");
   const { getUserEmail } = useAuth();
   const [uploadLoading, setUploadLoading] = useState(false);
   const [videoLoading, setVideoLoading] = useState(false);
@@ -21,7 +21,7 @@ const TextToVideo = () => {
   const [selectedAudio, setSelectedAudio] = useState(null);
   const [selectedVideo, setSelectedVideo] = useState(null);
   const [lipSyncLoading, setLipSyncLoading] = useState(false);
-  const [historyLoading, setHistoryLoading] = useState(false);  
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [jobHistory, setJobHistory] = useState([]);
   const getAudioHistory = async () => {
     try {
@@ -189,7 +189,19 @@ const TextToVideo = () => {
       setLipSyncLoading(false);
     }
   };
-  console.log(jobHistory);
+  const getJobInfo = async (user_id, video_id) => {
+    try {
+      const response = await axiosPrivate.get(
+        `/video/job/${user_id}/${video_id}`
+      );
+      console.log(response.data);
+    } catch (error) {
+      console.error("Error getting job info:", error);
+    }
+  };
+  // Separate completed and pending jobs
+  const completedJobs = jobHistory.filter((job) => job.status === "COMPLETED");
+  const pendingJobs = jobHistory.filter((job) => job.status !== "COMPLETED");
   return (
     <>
       <div className="flex-1 flex space-x-4">
@@ -198,31 +210,33 @@ const TextToVideo = () => {
           <div className="flex-1 p-8 flex flex-col">
             {/* Text Input Area */}
             <div className="flex-1 ">
-              {/* <textarea
-                placeholder="Start typing here or paste any text you want to generate Lip Sync Video"
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                className="w-full h-[calc(100vh-240px)] p-6 border rounded-2xl resize-none focus:outline-none focus:border-gray-400 text-base text-gray-500"
-              /> */}
               {historyLoading ? (
                 <div className="flex justify-center items-center h-full">
                   <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-black"></div>
                 </div>
-              ) : jobHistory.length > 0 ? (
-                <div>
-                  <p>Job History</p>
-                  {jobHistory.map((job) => (
-                    <div key={job.job_id} className="border rounded-lg p-4 mb-4 shadow-sm">
-                      <p><strong>Job ID:</strong> {job.job_id}</p>
-                      <p><strong>Status:</strong> {job.status}</p>
-                      <p><strong>Created At:</strong> {job.created_at}</p>
-                      <button className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+              ) : (
+                <div className="flex flex-wrap gap-4">
+                  {pendingJobs.map((job, index) => (
+                    <div
+                      key={index}
+                      className="border rounded-lg p-4 mb-4 shadow-sm w-fit"
+                    >
+                      <p>
+                        <strong>Status:</strong> {job.status}
+                      </p>
+                      <p>
+                        <strong>Created At:</strong> {job.created_at}
+                      </p>
+                      <button
+                        className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                        onClick={() => getJobInfo(job.user_id, job.video_id)}
+                      >
                         Get Info
                       </button>
                     </div>
                   ))}
                 </div>
-              ) : null}
+              )}
             </div>
 
             {/* Buttons */}
@@ -309,7 +323,7 @@ const TextToVideo = () => {
               </div>
               <button
                 className="rounded-full px-6 py-2 bg-black text-white hover:bg-gray-800 flex items-center space-x-2"
-                disabled={lipSyncLoading} 
+                disabled={lipSyncLoading}
                 onClick={handleLipSync}
               >
                 {lipSyncLoading ? (
@@ -323,54 +337,17 @@ const TextToVideo = () => {
         </div>
 
         {/* Video Preview Area - Right Side */}
-        <div className="w-96 space-y-4">
-          {/* First Video */}
-          <div className="bg-white rounded-2xl p-4 shadow-sm">
-            <div className="relative aspect-[4/5] bg-gray-100 rounded-xl overflow-hidden">
-              <img
-                src="/api/placeholder/400/500"
-                alt="Video preview"
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/50 to-transparent">
-                <div className="flex items-center justify-between text-white">
-                  <div className="flex items-center space-x-2">
-                    <Play className="w-4 h-4" />
-                    <span className="text-xs">0:00 / 0:26</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Volume2 className="w-4 h-4" />
-                    <Maximize2 className="w-4 h-4" />
-                    <MoreVertical className="w-4 h-4" />
-                  </div>
+        <div className="w-96 space-y-4 relative">
+          <h2 className="text-xl font-semibold">Synced Videos</h2>
+          {completedJobs.map((job) => (
+            <div key={job.video_id}>
+              <div className="bg-white rounded-2xl p-4 shadow-sm">
+                <div className="relative w-80 bg-gray-100 rounded-xl overflow-hidden">
+                  <video src={job?.job_result?.outputUrl} controls></video>
                 </div>
               </div>
             </div>
-          </div>
-
-          {/* Second Video */}
-          <div className="bg-white rounded-2xl p-4 shadow-sm">
-            <div className="relative aspect-[4/5] bg-gray-100 rounded-xl overflow-hidden">
-              <img
-                src="/api/placeholder/400/500"
-                alt="Video preview"
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/50 to-transparent">
-                <div className="flex items-center justify-between text-white">
-                  <div className="flex items-center space-x-2">
-                    <Play className="w-4 h-4" />
-                    <span className="text-xs">0:00 / 0:20</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Volume2 className="w-4 h-4" />
-                    <Maximize2 className="w-4 h-4" />
-                    <MoreVertical className="w-4 h-4" />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          ))}
         </div>
       </div>
     </>
