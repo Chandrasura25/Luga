@@ -219,40 +219,34 @@ async def sync_audio(request: SyncAudioRequest):
             audio_url=audio_url,
             video_url=video_url,
         )
-        print(sync_result)
-        # if not sync_result:
-        #     raise HTTPException(status_code=500, detail="Failed to sync audio")
-        # # Convert any bytes in sync_result to strings to avoid JSON serialization issues
-        # sync_result = {
-        #     k: (v.decode("utf-8") if isinstance(v, bytes) else v) 
-        #     for k, v in sync_result.items()
-        # }
+        if not sync_result:
+            raise HTTPException(status_code=500, detail="Failed to sync audio")
+     
 
-        # sync_record = {
-        #     "user_id": request.user_id,
-        #     "video_id": request.video_id,
-        #     "audio_id": request.audio_id,
-        #     "job_id": sync_result.get("id"),
-        #     "status": sync_result.get("status", "processing"),
-        #     "sync_result": sync_result,
-        #     "audio_url": audio_url,
-        #     "video_url": video_url,
-        #     "created_at": datetime.utcnow(),
-        #     "updated_at": datetime.utcnow()
-        # }
+        sync_record = {
+            "user_id": str(user["_id"]),
+            "video_id": request.video_id,
+            "audio_id": request.audio_id,
+            "job_id": sync_result.get("id"),
+            "status": sync_result.get("status", "processing"),
+            "sync_result": sync_result,
+            "audio_url": audio_url,
+            "video_url": video_url,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        }
         
-        # await database.db.audio_to_video.insert_one(sync_record)
+        await database.db.audio_to_video.insert_one(sync_record)
 
-        # return VideoProcessedResponse(
-        #     user_id=request.user_id,
-        #     video_id=request.video_id,
-        #     sync_result=sync_result,
-        #     message="Audio sync job submitted successfully"
-        # )
+        return VideoProcessedResponse(
+            user_id=str(user["_id"]),
+            video_id=request.video_id,
+            sync_result=sync_result,
+            message="Audio sync job submitted successfully"
+        )
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    
 @router.get("/job/{user_id}/{video_id}", response_model=JobStatusResponse)
 async def get_job_status(user_id: str, video_id: str):
     try:
