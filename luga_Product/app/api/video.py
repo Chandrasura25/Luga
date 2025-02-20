@@ -10,6 +10,9 @@ from app.services.cloudinary import upload_file_to_cloudinary, get_cloudinary_vi
 from app.services.baidu import upload_file_to_baidu_bos, get_baidu_bos_video_url, get_baidu_bos_audio_url
 from pymongo import DESCENDING
 from typing import List
+from moviepy import VideoFileClip
+import tempfile
+import os
 router = APIRouter()
 
 
@@ -102,6 +105,7 @@ async def get_audio(user_email: str = Body(..., embed=True)):
         ) for item in audio
     ]
 
+
 @router.post("/upload-video", response_model=VideoUploadResponse)
 async def upload_video(
     video: UploadFile = File(...),
@@ -111,32 +115,56 @@ async def upload_video(
         user = await database.find_user_by_email(user_email)
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
-        
+
+        # Check remaining video quota
+        remaining_video_quota = user.get("video_quota", 0)
+        if remaining_video_quota <= 0:
+            raise HTTPException(status_code=403, detail="Insufficient video quota. Please upgrade your plan.")
+
         if not video.content_type.startswith('video/'):
             raise HTTPException(status_code=400, detail="Invalid file type. Please upload a video file.")
 
-        video_upload_result = {}
-        if Config.S3_PROVIDER == "BAIDU":
-            video_upload_result = await upload_file_to_baidu_bos(video, folder="videos")
-        else:
-            video_upload_result = await upload_file_to_cloudinary(video, folder="videos")
-        
+        # Save video temporarily to extract duration
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_video:
+            temp_video.write(await video.read())
+            temp_video_path = temp_video.name
+
+        # Extract actual video duration
+        try:
+            clip = VideoFileClip(temp_video_path)
+            actual_duration = clip.duration  # Duration in seconds
+            clip.close()
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error extracting video duration: {str(e)}")
+
+        # Remove temporary file
+        os.unlink(temp_video_path)
+
+        if actual_duration > remaining_video_quota:
+            raise HTTPException(status_code=403, detail="Not enough video quota for this upload.")
+
+        # Deduct used video quota
+        new_video_quota = max(0, remaining_video_quota - actual_duration)
+        await database.db.users.update_one(
+            {"_id": user["_id"]},
+            {"$set": {"video_quota": new_video_quota}}
+        )
+
+        # Upload video file
+        video_upload_result = await upload_file_to_cloudinary(video, folder="videos")
         video_id = str(ObjectId())
-        video_url = None
-        if Config.S3_PROVIDER == "BAIDU":
-            video_url = get_baidu_bos_video_url(video_upload_result['key'])
-        else:
-            video_url = get_cloudinary_video_url(
-                video_upload_result['public_id'], 
-                video_upload_result['resource_type'], 
-                video_upload_result['format']
-            )
+        video_url = get_cloudinary_video_url(
+            video_upload_result['public_id'],
+            video_upload_result['resource_type'],
+            video_upload_result['format']
+        )
 
         video_record = {
             "user_id": str(user["_id"]),
             "video_id": video_id,
             "video_url": video_url,
-            "file_name": video.filename,  # Save the file name to the database
+            "file_name": video.filename,
+            "duration": actual_duration,  # Save actual duration
             "created_at": datetime.utcnow(),
         }
         video_record.update(video_upload_result)
@@ -147,11 +175,12 @@ async def upload_video(
             user_id=str(user["_id"]),
             video_id=video_id,
             video_url=video_url,
-            file_name=video.filename,  # Ensure file_name is included in the response
-            message="Video uploaded successfully"
+            file_name=video.filename,
+            message=f"Video uploaded successfully. Duration: {actual_duration} seconds"
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 @router.post("/get-video", response_model=List[VideoUploadResponse])
 async def get_video(user_email: str = Body(..., embed=True)): 
     user = await database.find_user_by_email(user_email)
@@ -175,6 +204,14 @@ async def sync_audio(request: SyncAudioRequest):
     user = await database.find_user_by_email(request.user_email)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    
+    # Check video processing quota
+    process_quota = user.get("process_video_quota", 0)
+    active_processes = user.get("used_process_videos", 0)
+    
+    if active_processes >= process_quota:
+        raise HTTPException(status_code=403, detail="Video processing limit reached. Upgrade to process more videos.")
+
     video_record = await database.db.videos.find_one({
         "user_id": str(user["_id"]),
         "video_id": request.video_id
@@ -221,7 +258,11 @@ async def sync_audio(request: SyncAudioRequest):
         )
         if not sync_result:
             raise HTTPException(status_code=500, detail="Failed to sync audio")
-     
+        # Update user's used_process_videos count
+        await database.db.users.update_one(
+            {"_id": user["_id"]},
+            {"$inc": {"used_process_videos": 1}}
+        )
 
         sync_record = {
             "user_id": str(user["_id"]),
