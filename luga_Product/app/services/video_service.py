@@ -40,7 +40,6 @@ class SyncLabsVideoService:
             payload["webhookUrl"] = webhook_url  # Only add if provided
 
         try:
-            print(payload)
             response = requests.post(endpoint, json=payload, headers=headers)
             response.raise_for_status()
             return response.json()
