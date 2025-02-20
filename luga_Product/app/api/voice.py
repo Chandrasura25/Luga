@@ -28,17 +28,24 @@ async def get_voices(service: ElevenLabsService = Depends()):
 
 @router.post("/notify-quota")
 async def notify_quota(user_id: str, background_tasks: BackgroundTasks):
-    user_quota = await database.db.quota.find_one({"user_id": user_id})
+    """
+    Check if a user's quota is running low and send a notification if needed.
+    """
+    user_quota = await database.db.users.find_one({"_id": user_id})
     if user_quota and user_quota["audio_quota"] <= 60:  # Notify when less than 1 minute left
         background_tasks.add_task(send_notification, user_id, "You have less than 1 minute of audio quota left.")
-    return {"message": "Notification sent"}
+    return {"message": "Notification checked and sent if applicable"}
 
 async def send_notification(user_id: str, message: str):
-    raise HTTPException(status_code=500, detail=message)
+    """
+    Simulates sending a notification. This could be replaced with an email/SMS system.
+    """
+    print(f"Notification for user {user_id}: {message}")
 
 @router.post("/text-to-speech", response_model=Audio)
 async def text_to_speech(
     request: TextToSpeechRequest, 
+    background_tasks: BackgroundTasks,
     service: ElevenLabsService = Depends(get_eleven_labs_service)
 ):
     try:
@@ -47,7 +54,7 @@ async def text_to_speech(
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
 
-        # Check audio quota
+        # Check remaining quota
         remaining_quota = user.get("audio_quota", 0)
         if remaining_quota <= 0:
             raise HTTPException(status_code=403, detail="Insufficient quota, please upgrade your plan")
@@ -58,21 +65,28 @@ async def text_to_speech(
         if not request.voice_id:
             raise HTTPException(status_code=422, detail="Voice ID is required")
 
-        # Generate audio
+        # Generate audio content
         audio_content = service.text_to_speech(request.voice_id, request.text)
         if not audio_content:
             raise HTTPException(status_code=500, detail="Failed to generate audio content")
 
-        # Calculate used quota (assuming 1 second per word for estimation)
+        # Calculate actual duration (assuming 1 second per 3 words, modify as needed)
         words = len(request.text.split())
-        estimated_duration = words  # Example: 1 second per word (adjust as needed)
+        estimated_duration = max(1, words // 3)  # Ensures minimum 1 second charge
 
         if estimated_duration > remaining_quota:
             raise HTTPException(status_code=403, detail="Not enough quota for this request")
 
         # Deduct used quota
         new_quota = max(0, remaining_quota - estimated_duration)
-        await database.update_user_quota(user["_id"], new_quota)
+        await database.db.users.update_one(
+            {"_id": user["_id"]},
+            {"$set": {"audio_quota": new_quota}}
+        )
+
+        # Notify if quota is running low
+        if new_quota <= 60:  # Less than 1 minute remaining
+            background_tasks.add_task(send_notification, user["_id"], "You have less than 1 minute of audio quota left.")
 
         # Upload audio file
         file_name = f"{user['_id']}_{request.voice_id}_{str(ObjectId())}.mp3"
