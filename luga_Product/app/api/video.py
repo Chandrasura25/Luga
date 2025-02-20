@@ -267,9 +267,9 @@ async def get_job_status(user_id: str, video_id: str):
                 status_code=400, 
                 detail="No job ID found for this sync record"
             )
-
+        print(job_id)
         job_status = video_service.get_job_status(job_id)
-        
+        print(job_status)
         update_data = {
             "status": job_status.get("status"),
             "job_result": job_status,
