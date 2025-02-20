@@ -54,7 +54,7 @@ class SyncLabsVideoService:
             raise HTTPException(status_code=400, detail=error_message)
 
     def get_job_status(self, job_id: str):
-        endpoint = f"{self.base_url}/jobs/{job_id}"  
+        endpoint = f"{self.base_url}/generate/{job_id}"  
         
         headers = {
             "x-api-key": self.api_key
