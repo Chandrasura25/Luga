@@ -22,8 +22,15 @@ const PasswordReset = () => {
         }
         setLoading(true);
         try {
-            const response = await axios.post("/user/reset-password", { password });
+            const email = localStorage.getItem("email");
+            const response = await axios.post("/user/reset-password", { password, email });
             if (response.status === 200) {
+                localStorage.removeItem("email");   
+                toast({
+                    title: "Success",
+                    description: "Password reset successful.",
+                    variant: "default",
+                });
                 navigate("/login");
             }
         } catch (error) {
