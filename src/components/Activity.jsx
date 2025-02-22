@@ -20,7 +20,6 @@ const Activity = () => {
   useEffect(() => {
     getBalance();
   }, []);
-
   return (
     <div className="flex-1 flex space-x-4">
       {/* Main Content Area */}
@@ -42,12 +41,12 @@ const Activity = () => {
                   </p>
                   {userInfo.balance && (
                     <div className="space-y-3">
-                      {userInfo.balance.test_quota !== undefined && (
+                      {userInfo.balance.text_quota !== undefined && (
                         <p className="text-gray-700">
                           <span className="font-medium">Test Quota:</span>{" "}
-                          {userInfo.balance.test_quota === -1
+                          {userInfo.balance.text_quota === -1
                             ? "Unlimited"
-                            : userInfo.balance.test_quota}
+                            : userInfo.balance.text_quota}
                         </p>
                       )}
                       {userInfo.balance.audio_quota !== undefined && (
