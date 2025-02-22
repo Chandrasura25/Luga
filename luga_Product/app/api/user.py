@@ -1,6 +1,6 @@
 import re
 
-from fastapi import APIRouter, UploadFile, HTTPException, File, Form, Request, BackgroundTasks, status
+from fastapi import APIRouter, UploadFile, HTTPException, File, Form, Request, BackgroundTasks, status, Body
 from fastapi.responses import JSONResponse, Response, RedirectResponse
 from typing import Dict, Optional, Union
 from bson import ObjectId
@@ -152,16 +152,18 @@ async def login(InputUser: User):
     stripe.api_key = Config.STRIPE_API_KEY
     prices = stripe.Price.list(limit=10)
     num_items = len(prices["data"])
-    # print("THE QUANTITY: ", num_items)
+    # print("THE QUPANTITY: ", num_items)
     # for price in prices["data"]:
     #     product = stripe.Product.retrieve(price["product"])  
     #     print(f"Product: {product['name']}, Price ID: {price['id']}, Amount: {price['unit_amount'] / 100} {price['currency'].upper()}")
     return {"access_token": access_token, "token_type": "bearer"}
-@router.get("/balance")
-async def get_balance(request: Request):
-    token = request.headers.get("Authorization").split(" ")[1]
-    print(token)
-    return {"message": "Successfully logged out"}
+@router.post("/balance")
+async def get_balance(user_email: str = Body(..., embed=True)): 
+    user = await database.find_user_by_email(user_email)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    print(user)
+    return {"subscription_plan": user["subscription_plan"], "balance": user["quota"]}
 #Signoff
 @router.post("/logout")
 async def logout(request: TokenLogOut):
