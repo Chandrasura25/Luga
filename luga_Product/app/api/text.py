@@ -12,7 +12,7 @@ router = APIRouter()
 @router.post("/generate", response_model=TextResponse)
 async def create_prompt(prompt: TextCreate):
     user = await database.find_user_by_email(prompt.user_email)
-    if not user or user.get("text_quota", 0) == 0:
+    if not user or user.get("quota", {}).get("text_quota", 0) == 0:
         raise HTTPException(status_code=403, detail="Insufficient quota, please upgrade your plan")
 
     try:
@@ -26,13 +26,13 @@ async def create_prompt(prompt: TextCreate):
         }
         await database.db.text.insert_one(prompt_data)
 
-        if user.get("text_quota", 0) > 0:
+        if user.get("quota", {}).get("text_quota", 0) > 0:
             await database.db.users.update_one(
                 {"email": prompt.user_email},
-                {"$inc": {"text_quota": -1}}
+                {"$inc": {"quota.text_quota": -1}}
             )
 
-            if user.get("text_quota", 0) <= 10:  # Notify when quota is low
+            if user.get("quota", {}).get("text_quota", 0) <= 10:  # Notify when quota is low
                 raise HTTPException(status_code=403, detail="Your text quota is running low.")
 
         return {"prompt": prompt.prompt, "response": response_text}
