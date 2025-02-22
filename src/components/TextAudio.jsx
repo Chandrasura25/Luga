@@ -54,7 +54,6 @@ const TextAudio = () => {
       setFetchLoading(false);
     }
   };
-
   useEffect(() => {
     fetchVoices();
     fetchUserVoices();
@@ -289,9 +288,13 @@ const TextAudio = () => {
                         <SelectItem
                           key={voice.voice_id}
                           value={voice.voice_id}
-                          className="uppercase"
                         >
-                          {voice.name}
+                          <p className="uppercase">{voice.name}</p>
+                          <span>
+                            {voice.labels.accent && `${voice.labels.accent}`}
+                            {voice.labels.age && `, ${voice.labels.age}`}
+                            {voice.labels.gender && `, ${voice.labels.gender}`}
+                          </span>
                         </SelectItem>
                       ))
                     )}
