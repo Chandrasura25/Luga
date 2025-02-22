@@ -18,6 +18,7 @@ class ElevenLabsService:
         response = requests.get(url, headers=headers)
         
         if response.status_code != 200:
+            print(response.json())
             raise HTTPException(status_code=response.status_code, detail="Error fetching voices from Eleven Labs API")
 
         return response.json().get("voices", [])
