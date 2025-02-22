@@ -54,7 +54,11 @@ class Database:
             )
             return {"message": "Subscription expired. Downgraded to 'normal'."}
         return {"message": "Subscription is still active."}
-
+    
+    async def update_user_password_reset_code(self, email, reset_code):
+        await self.client["luga"]["users"].update_one({"email": email}, {"$set": {"password_reset_code": reset_code}})
+    async def find_user_by_password_reset_code(self, reset_code):
+        return await self.client["luga"]["users"].find_one({"password_reset_code": reset_code})
     def check_quota(self, user, content_type, duration):
         """ Check if user has enough quota before generating content """
         user_plan = user.get("subscription_plan", "")
@@ -87,6 +91,6 @@ async def update_text_quota(user, text):
     """ Update the used text quota after processing """
     new_used_text = user["used_text_characters"] + len(text)
     await database.db.users.update_one({"_id": user["_id"]}, {"$set": {"used_text_characters": new_used_text}})
-async def update_user_password_reset_code(email, reset_code):
-    await database.db.users.update_one({"email": email}, {"$set": {"password_reset_code": reset_code}})
+
+
 database = Database()
