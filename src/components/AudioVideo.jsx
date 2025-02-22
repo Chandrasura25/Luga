@@ -171,7 +171,7 @@ const TextToVideo = () => {
         video_id: selectedVideo,
       });
       if (response.status === 200) {
-        getVideoHistory();
+        getJobHistory();
         toast({
           description: "Audio synced successfully!",
         });
@@ -199,6 +199,7 @@ const TextToVideo = () => {
         toast({
           description: "Job info fetched successfully!",
         });
+        await getJobHistory();
       }
     } catch (error) {
       console.error("Error getting job info:", error);
