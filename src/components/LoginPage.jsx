@@ -88,7 +88,12 @@ const LoginPage = () => {
           </div>
         </form>
         <div className="flex items-center justify-between">
-          <p>Not a member? </p>
+          <a
+            className="text-blue-600 hover:text-blue-800 hover:underline"
+            href="/forgot-password"
+          >
+            Forgot Password?
+          </a>
           <a
             className="text-blue-600 hover:text-blue-800 hover:underline"
             href="/register"
