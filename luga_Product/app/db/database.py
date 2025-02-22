@@ -2,6 +2,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from app.core.config import Config
 from datetime import datetime, timedelta, timezone
 from fastapi import HTTPException
+import bcrypt
 
 quota_map = {
     "Test Leap": {"audio_quota": 5 * 60, "video_quota": 3 * 60, "text_quota": -1, "process_video_quota": 2},
@@ -62,6 +63,10 @@ class Database:
         if user:
             await self.client["luga"]["users"].update_one({"_id": user["_id"]}, {"$unset": {"password_reset_code": ""}})
         return user
+    async def update_user_password(self, email, password):
+        salt = bcrypt.gensalt()
+        hashed_password = bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
+        await self.client["luga"]["users"].update_one({"email": email}, {"$set": {"password": hashed_password}})
     def check_quota(self, user, content_type, duration):
         """ Check if user has enough quota before generating content """
         user_plan = user.get("subscription_plan", "")
