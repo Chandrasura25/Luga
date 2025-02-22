@@ -87,5 +87,6 @@ async def update_text_quota(user, text):
     """ Update the used text quota after processing """
     new_used_text = user["used_text_characters"] + len(text)
     await database.db.users.update_one({"_id": user["_id"]}, {"$set": {"used_text_characters": new_used_text}})
-
+async def update_user_password_reset_code(email, reset_code):
+    await database.db.users.update_one({"email": email}, {"$set": {"password_reset_code": reset_code}})
 database = Database()
