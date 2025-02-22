@@ -78,6 +78,17 @@ async def reset_password(reset_code: str = Body(..., embed=True)):
         return {"message": "Password reset successful", "email": user["email"]}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+@router.post("/password-reset")
+async def password_reset(password: str = Body(..., embed=True), email: str = Body(..., embed=True)):
+    try:
+        user = await database.find_user_by_email(email)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        # Update the user's password in the database
+        await database.update_user_password(email, password)
+        return {"message": "Password reset successful"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 #Verify
 @router.get("/verify")
 async def verify_email(token: str):
