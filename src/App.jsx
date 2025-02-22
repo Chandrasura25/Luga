@@ -11,6 +11,7 @@ import ForgotPassword from "./components/ForgotPassword";
 import ResetCode from "./components/ResetCode";
 
 import "./App.css";
+import PasswordReset from "./components/PasswordReset";
 
 function App() {
   const [token, setToken] = useState(null);
@@ -33,6 +34,7 @@ function App() {
       <Route path="/about" element={<AboutPage />} />
       <Route path="/demo" element={<ChatbotPage />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/reset-password" element={<PasswordReset />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-code" element={<ResetCode />} />
       <Route path="/register" element={<RegisterPage />} />
