@@ -157,7 +157,11 @@ async def login(InputUser: User):
     #     product = stripe.Product.retrieve(price["product"])  
     #     print(f"Product: {product['name']}, Price ID: {price['id']}, Amount: {price['unit_amount'] / 100} {price['currency'].upper()}")
     return {"access_token": access_token, "token_type": "bearer"}
-
+@router.get("/balance")
+async def get_balance(request: Request):
+    token = request.headers.get("Authorization").split(" ")[1]
+    print(token)
+    return {"message": "Successfully logged out"}
 #Signoff
 @router.post("/logout")
 async def logout(request: TokenLogOut):
