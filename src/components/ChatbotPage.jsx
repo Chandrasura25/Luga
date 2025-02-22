@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import TextAudio from "./TextAudio";
 import AudioVideo from "./AudioVideo";
+import ActivityPage from "./Activity";
 import axios from "../api/axios";
 import { useAuth } from "./auth";
 import { toast } from "react-toastify";
@@ -81,20 +82,20 @@ const ChatbotInterface = () => {
       active: activeView === "video",
       onClick: () => setActiveView("video"),
     },
-    { icon: Activity, label: "Activity" },
+    { icon: Activity, label: "Activity", onClick: () => setActiveView("activity"), active: activeView === "activity" },
     { icon: CreditCard, label: "Pricing" },
     { icon: Settings, label: "Settings" },
   ];
 
   const recentChats = [
-    "Game Night Planning",
-    "Uncover Lab Learn",
-    "Using Origin in Vietnam",
-    "Clientless Public Work",
-    "Developer Team Size",
-    "Instagram Post Embed",
-    "Video Editing Community",
-    "Hi Response Summary",
+    // "Game Night Planning",
+    // "Uncover Lab Learn",
+    // "Using Origin in Vietnam",
+    // "Clientless Public Work",
+    // "Developer Team Size",
+    // "Instagram Post Embed",
+    // "Video Editing Community",
+    // "Hi Response Summary",
   ];
 
   const sendMessage = async () => {
@@ -326,8 +327,12 @@ const ChatbotInterface = () => {
           </>
         ) : activeView === "audio" ? (
           <TextAudio />
-        ) : (
+        ) : activeView === "video" ? (
           <AudioVideo />
+        ) : activeView === "activity" ? (
+          <ActivityPage />
+        ) : (
+          <div>No Activity</div>
         )}
       </div>
     </div>
