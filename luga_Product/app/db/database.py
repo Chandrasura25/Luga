@@ -4,8 +4,8 @@ from datetime import datetime, timedelta, timezone
 from fastapi import HTTPException
 
 quota_map = {
-    "Test Leap": {"audio_quota": 5 * 60, "video_quota": 3 * 60, "text_quota": -1, "process_video_quota": 0},
-    "Demo": {"audio_quota": 5 * 60, "video_quota": 5 * 60, "text_quota": -1, "process_video_quota": 0},
+    "Test Leap": {"audio_quota": 5 * 60, "video_quota": 3 * 60, "text_quota": -1, "process_video_quota": 2},
+    "Demo": {"audio_quota": 5 * 60, "video_quota": 5 * 60, "text_quota": -1, "process_video_quota": 2},
     "Starter": {"audio_quota": 60 * 60, "video_quota": 60 * 60, "text_quota": -1, "process_video_quota": 3},
     "Creator": {"audio_quota": 240 * 60, "video_quota": 240 * 60, "text_quota": -1, "process_video_quota": 5},
     "Team": {"audio_quota": 32400, "video_quota": 32400, "text_quota": -1, "process_video_quota": 10},
