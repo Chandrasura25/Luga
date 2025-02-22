@@ -162,7 +162,6 @@ async def get_balance(user_email: str = Body(..., embed=True)):
     user = await database.find_user_by_email(user_email)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    print(user)
     return {"subscription_plan": user["subscription_plan"], "balance": user["quota"]}
 #Signoff
 @router.post("/logout")
