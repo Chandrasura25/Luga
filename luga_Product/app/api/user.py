@@ -12,7 +12,7 @@ from app.core.config import Config
 from pymongo.errors import DuplicateKeyError
 from email.message import EmailMessage
 from app.utils import verification_email_content
-
+import uuid
 import stripe
 import smtplib
 import bcrypt
@@ -44,7 +44,18 @@ def send_email(to_email, subject, url):
 def create_verification_token(email):
     access_token_expires = timedelta(minutes=Config.ACCESS_TOKEN_EXPIRE_MINUTES)
     return create_access_token(data={"sub": email}, expires_delta=access_token_expires)
-
+@router.post("/forgot-password")
+async def forgot_password(email: str = Body(..., embed=True)): 
+    user = await database.find_user_by_email(email=email)
+    if not user:
+        raise HTTPException(status_code=400, detail="User not found")
+    # Generate a random password reset code
+    reset_code = str(uuid.uuid4())[:6].upper()
+    # Update the user's password reset code in the database
+    await database.update_user_password_reset_code(email, reset_code)
+    # Send the reset code to the user's email
+    send_email(email, "Password Reset Code", f"Your password reset code is: {reset_code}")
+    return {"message": "Password reset email sent"}
 #Verify
 @router.get("/verify")
 async def verify_email(token: str):
