@@ -23,7 +23,7 @@ const PasswordReset = () => {
     setLoading(true);
     try {
       const email = localStorage.getItem("email");
-      const response = await axios.post("/user/reset-password", {
+      const response = await axios.post("/user/password-reset", {
         password,
         email,
       });
