@@ -7,6 +7,8 @@ import LoginPage from "./components/LoginPage";
 import CancelPage from "./components/CancelPage";
 import SuccessPage from "./components/SuccessPage";
 import RegisterPage from "./components/RegisterPage";
+import ForgotPassword from "./components/ForgotPassword";
+
 import "./App.css";
 
 function App() {
@@ -30,6 +32,7 @@ function App() {
       <Route path="/about" element={<AboutPage />} />
       <Route path="/demo" element={<ChatbotPage />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/cancel" element={<CancelPage />} />
       <Route path="/success" element={<SuccessPage />} />
