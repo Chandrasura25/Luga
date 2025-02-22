@@ -1,16 +1,27 @@
 import { useState } from "react";
 import axios from "../api/axios";
+import { useNavigate } from "react-router-dom";
+import { useToast } from "../hooks/use-toast";
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+  const toast = useToast();
 
   const handleForgotPassword = async () => {
     try {   
       const response = await axios.post("/user/forgot-password", { email });
-      console.log(response);
+     if(response.status === 200){
+      navigate("/reset-code");
+     }
     } catch (error) {
       console.error(error);
+      toast({
+        title: "Error",
+        description: error.response.data.message,
+        variant: "destructive",
+      })
     } finally {
       setLoading(false);
     }
