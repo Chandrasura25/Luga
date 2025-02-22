@@ -19,7 +19,7 @@ const ForgotPassword = () => {
   return (
     <div className="min-h-screen bg-white flex justify-center items-center">
       {/* container */}
-      <div className="max-w-[350px] flex flex-col gap-4">
+      <div className="w-[400px] flex flex-col gap-4">
       <h2 className="text-2xl font-medium text-center mb-2">
         Welcome to Luga.ai
       </h2>
@@ -37,7 +37,7 @@ const ForgotPassword = () => {
           <button
             type="submit"
             disabled={loading}
-            className="px-6 py-2.5 text-base font-medium text-white bg-black rounded-full hover:bg-gray-800 transition-colors"
+            className="px-6 py-2.5 text-base font-medium text-white bg-black rounded-full hover:bg-gray-800 transition-colors w-full"
           >
             {loading ? "Verifying..." : "Verify"}
           </button>
