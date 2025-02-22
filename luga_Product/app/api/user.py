@@ -11,7 +11,7 @@ from app.db.database import database
 from app.core.config import Config
 from pymongo.errors import DuplicateKeyError
 from email.message import EmailMessage
-from app.utils import verification_email_content
+from app.utils import verification_email_content, forgot_password_email_content
 import uuid
 import stripe
 import smtplib
@@ -39,7 +39,15 @@ def send_email(to_email, subject, url):
     with smtplib.SMTP_SSL(Config.SMTP_SERVER, Config.SMTP_PORT) as server:
         server.login(Config.SMTP_USERNAME, Config.SMTP_PASSWORD)
         server.send_message(msg)
-
+def send_password_reset_email(to_email, reset_code):
+    msg = EmailMessage()
+    msg["Subject"] = "Password Reset Code"
+    msg["From"] = Config.SMTP_USERNAME
+    msg["To"] = to_email
+    msg.add_alternative(forgot_password_email_content(reset_code), subtype="html")
+    with smtplib.SMTP_SSL(Config.SMTP_SERVER, Config.SMTP_PORT) as server:
+        server.login(Config.SMTP_USERNAME, Config.SMTP_PASSWORD)
+        server.send_message(msg)
 #Create Verification Token
 def create_verification_token(email):
     access_token_expires = timedelta(minutes=Config.ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -49,16 +57,25 @@ async def forgot_password(email: str = Body(..., embed=True)):
     try:
         user = await database.find_user_by_email(email=email)
         if not user:
-            raise HTTPException(status_code=400, detail="User not found")
+            raise HTTPException(status_code=404, detail="User not found")
         # Generate a random password reset code
         reset_code = str(uuid.uuid4())[:6].upper()
         # Update the user's password reset code in the database
         await database.update_user_password_reset_code(email, reset_code)
         # Send the reset code to the user's email
-        send_email(email, "Password Reset Code", f"Your password reset code is: {reset_code}")
+        send_password_reset_email(email, reset_code)
         return {"message": "Password reset email sent"}
     except Exception as e:
-        return {"message": str(e)}
+        raise HTTPException(status_code=500, detail=str(e))
+@router.post("/reset-password")
+async def reset_password(reset_code: str = Body(..., embed=True)):
+    try:
+        user = await database.find_user_by_password_reset_code(reset_code)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        return {"message": "Password reset successful", "user": user}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 #Verify
 @router.get("/verify")
 async def verify_email(token: str):
