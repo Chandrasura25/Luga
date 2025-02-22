@@ -73,7 +73,9 @@ async def reset_password(reset_code: str = Body(..., embed=True)):
         user = await database.find_user_by_password_reset_code(reset_code)
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
-        return {"message": "Password reset successful", "user": user}
+        # Convert ObjectId to string to avoid serialization issues
+        user["_id"] = str(user["_id"])
+        return {"message": "Password reset successful", "email": user["email"]}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 #Verify
