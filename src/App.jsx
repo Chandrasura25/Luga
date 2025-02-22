@@ -8,6 +8,7 @@ import CancelPage from "./components/CancelPage";
 import SuccessPage from "./components/SuccessPage";
 import RegisterPage from "./components/RegisterPage";
 import ForgotPassword from "./components/ForgotPassword";
+import ResetCode from "./components/ResetCode";
 
 import "./App.css";
 
@@ -33,6 +34,7 @@ function App() {
       <Route path="/demo" element={<ChatbotPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-code" element={<ResetCode />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/cancel" element={<CancelPage />} />
       <Route path="/success" element={<SuccessPage />} />
