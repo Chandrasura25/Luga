@@ -46,16 +46,19 @@ def create_verification_token(email):
     return create_access_token(data={"sub": email}, expires_delta=access_token_expires)
 @router.post("/forgot-password")
 async def forgot_password(email: str = Body(..., embed=True)): 
-    user = await database.find_user_by_email(email=email)
-    if not user:
-        raise HTTPException(status_code=400, detail="User not found")
-    # Generate a random password reset code
-    reset_code = str(uuid.uuid4())[:6].upper()
-    # Update the user's password reset code in the database
-    await database.update_user_password_reset_code(email, reset_code)
-    # Send the reset code to the user's email
-    send_email(email, "Password Reset Code", f"Your password reset code is: {reset_code}")
-    return {"message": "Password reset email sent"}
+    try:
+        user = await database.find_user_by_email(email=email)
+        if not user:
+            raise HTTPException(status_code=400, detail="User not found")
+        # Generate a random password reset code
+        reset_code = str(uuid.uuid4())[:6].upper()
+        # Update the user's password reset code in the database
+        await database.update_user_password_reset_code(email, reset_code)
+        # Send the reset code to the user's email
+        send_email(email, "Password Reset Code", f"Your password reset code is: {reset_code}")
+        return {"message": "Password reset email sent"}
+    except Exception as e:
+        return {"message": str(e)}
 #Verify
 @router.get("/verify")
 async def verify_email(token: str):
@@ -177,9 +180,12 @@ async def get_balance(user_email: str = Body(..., embed=True)):
 #Signoff
 @router.post("/logout")
 async def logout(request: TokenLogOut):
-    token = request.token
-    print(token)
-    if await database.is_token_blacklisted(token):
-        raise HTTPException(status_code=400, detail="Token is already invalidated")
-    await database.blacklist_token(token)  # Add token to blacklist
-    return {"message": "Successfully logged out"}
+    try:    
+        token = request.token
+        print(token)
+        if await database.is_token_blacklisted(token):
+            raise HTTPException(status_code=400, detail="Token is already invalidated")
+        await database.blacklist_token(token)  # Add token to blacklist
+        return {"message": "Successfully logged out"}
+    except Exception as e:
+        return {"message": str(e)}
