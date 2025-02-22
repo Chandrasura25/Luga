@@ -5,14 +5,21 @@ import {
   InputOTPSeparator,
   InputOTPSlot,
 } from "../components/ui/input-otp";
+import axios from "../api/axios";
 
 const ResetCode = () => {
   const [resetCode, setResetCode] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleResetCode = (event) => {
-    event.preventDefault();
-    // Logic to handle the reset code submission
-    console.log("Reset Code Submitted:", resetCode);
+  const handleResetCode = async () => {
+    try {
+      const response = await axios.post("/user/reset-password", { resetCode });
+      console.log(response);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -37,9 +44,15 @@ const ResetCode = () => {
               <InputOTPSlot index={5} />
             </InputOTPGroup>
           </InputOTP>
-          <button type="submit" className="w-full py-2 bg-blue-500 text-white rounded">
-            Submit
-          </button>
+          <div className="flex items-center justify-center">
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-6 py-2.5 text-base font-medium text-white bg-black rounded-full hover:bg-gray-800 transition-colors w-full"
+            >
+              {loading ? "Submitting..." : "Submit"}
+            </button>
+          </div>
         </form>
       </div>
     </div>
