@@ -32,7 +32,7 @@ async def notify_quota(user_id: str, background_tasks: BackgroundTasks):
     Check if a user's quota is running low and send a notification if needed.
     """
     user_quota = await database.db.users.find_one({"_id": user_id})
-    if user_quota and user_quota["audio_quota"] <= 60:  # Notify when less than 1 minute left
+    if user_quota and user_quota["quota"]["audio_quota"] <= 60:  # Notify when less than 1 minute left
         background_tasks.add_task(send_notification, user_id, "You have less than 1 minute of audio quota left.")
     return {"message": "Notification checked and sent if applicable"}
 
@@ -55,7 +55,7 @@ async def text_to_speech(
             raise HTTPException(status_code=404, detail="User not found")
 
         # Check remaining quota
-        remaining_quota = user.get("audio_quota", 0)
+        remaining_quota = user.get("quota", {}).get("audio_quota", 0)
         if remaining_quota <= 0:
             raise HTTPException(status_code=403, detail="Insufficient quota, please upgrade your plan")
 
@@ -81,7 +81,7 @@ async def text_to_speech(
         new_quota = max(0, remaining_quota - estimated_duration)
         await database.db.users.update_one(
             {"_id": user["_id"]},
-            {"$set": {"audio_quota": new_quota}}
+            {"$set": {"quota.audio_quota": new_quota}}
         )
 
         # Notify if quota is running low
