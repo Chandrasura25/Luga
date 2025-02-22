@@ -117,7 +117,7 @@ async def upload_video(
             raise HTTPException(status_code=404, detail="User not found")
 
         # Check remaining video quota
-        remaining_video_quota = user.get("video_quota", 0)
+        remaining_video_quota = user.get("quota", {}).get("video_quota", 0)
         if remaining_video_quota <= 0:
             raise HTTPException(status_code=403, detail="Insufficient video quota. Please upgrade your plan.")
 
@@ -147,7 +147,7 @@ async def upload_video(
         new_video_quota = max(0, remaining_video_quota - actual_duration)
         await database.db.users.update_one(
             {"_id": user["_id"]},
-            {"$set": {"video_quota": new_video_quota}}
+            {"$set": {"quota.video_quota": new_video_quota}}
         )
 
         # Upload video file
@@ -204,19 +204,24 @@ async def sync_audio(request: SyncAudioRequest):
     user = await database.find_user_by_email(request.user_email)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    
-    # Check video processing quota
-    process_quota = user.get("process_video_quota", 0)
-    active_processes = user.get("used_process_videos", 0)
-    
+
+    # Get process video quota
+    process_quota = user.get("quota", {}).get("process_video_quota", 0)
+
+    # Count currently active processes (PENDING or PROCESSING)
+    active_processes = await database.db.audio_to_video.count_documents({
+        "user_id": str(user["_id"]),
+        "status": {"$in": ["PENDING", "PROCESSING"]}
+    })
+
     if active_processes >= process_quota:
-        raise HTTPException(status_code=403, detail="Video processing limit reached. Upgrade to process more videos.")
+        raise HTTPException(status_code=403, detail="Concurrent video processing limit reached. Please wait for ongoing processes to complete.")
 
     video_record = await database.db.videos.find_one({
         "user_id": str(user["_id"]),
         "video_id": request.video_id
     })
-    
+
     if not video_record:
         raise HTTPException(status_code=404, detail="No video found for this user and video ID")
 
@@ -229,54 +234,47 @@ async def sync_audio(request: SyncAudioRequest):
         raise HTTPException(status_code=404, detail="No audio found for this user and audio ID")
 
     try:
-        video_url = None
-        if Config.S3_PROVIDER == "BAIDU":
-            video_url = get_baidu_bos_video_url(video_record['key'])
-        else:
-            video_url = get_cloudinary_video_url(
-                video_record['public_id'], 
-                video_record['resource_type'], 
-                video_record['format']
-            )
+        # Fetch video and audio URLs
+        video_url = get_baidu_bos_video_url(video_record['key']) if Config.S3_PROVIDER == "BAIDU" else get_cloudinary_video_url(
+            video_record['public_id'], 
+            video_record['resource_type'], 
+            video_record['format']
+        )
+
         if not video_url:
             raise HTTPException(status_code=500, detail="Failed to get video URL")
-        
-        audio_url = None
-        if Config.S3_PROVIDER == "BAIDU":
-            audio_url = get_baidu_bos_audio_url(audio_record['key'])
-        else:
-            audio_url = get_cloudinary_audio_url(
-                audio_record['public_id'],
-                audio_record['resource_type'],
-                audio_record['format']
-            )
+
+        audio_url = get_baidu_bos_audio_url(audio_record['key']) if Config.S3_PROVIDER == "BAIDU" else get_cloudinary_audio_url(
+            audio_record['public_id'],
+            audio_record['resource_type'],
+            audio_record['format']
+        )
+
         if not audio_url:
             raise HTTPException(status_code=500, detail="Failed to get audio URL")
+
         sync_result = video_service.sync_audio_with_video(
             audio_url=audio_url,
             video_url=video_url,
         )
+
         if not sync_result:
             raise HTTPException(status_code=500, detail="Failed to sync audio")
-        # Update user's used_process_videos count
-        await database.db.users.update_one(
-            {"_id": user["_id"]},
-            {"$inc": {"used_process_videos": 1}}
-        )
 
+        # Store sync job details
         sync_record = {
             "user_id": str(user["_id"]),
             "video_id": request.video_id,
             "audio_id": request.audio_id,
             "job_id": sync_result.get("id"),
-            "status": sync_result.get("status", "processing"),
+            "status": sync_result.get("status", "PENDING"),  # Ensure the initial status is 'PENDING'
             "sync_result": sync_result,
             "audio_url": audio_url,
             "video_url": video_url,
             "created_at": datetime.utcnow(),
             "updated_at": datetime.utcnow()
         }
-        
+
         await database.db.audio_to_video.insert_one(sync_record)
 
         return VideoProcessedResponse(
@@ -308,24 +306,28 @@ async def get_job_status(user_id: str, video_id: str):
                 status_code=400, 
                 detail="No job ID found for this sync record"
             )
-        print(job_id)
         job_status = video_service.get_job_status(job_id)
-        print(job_status)
         update_data = {
             "status": job_status.get("status"),
             "job_result": job_status,
             "updated_at": datetime.utcnow()
         }
-
-        if job_status.get("status") == "completed":
+        if job_status.get("status") == "COMPLETED":
             result_url = job_status.get("output", {}).get("url") or job_status.get("result", {}).get("url")
             if result_url:
                 update_data["result_video_url"] = result_url
 
-        await database.db.audio_to_video.update_one(
-            {"_id": sync_record["_id"]},
+        # Ensure the database is updated with the latest job status
+        update_result = await database.db.audio_to_video.find_one_and_update(
+            {"user_id": user_id, "video_id": video_id},
             {"$set": update_data}
         )
+        print(update_result)
+        if not update_result:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to update the sync record in the database"
+            )
 
         response_data = {
             "user_id": user_id,
@@ -336,7 +338,6 @@ async def get_job_status(user_id: str, video_id: str):
             "created_at": sync_record.get("created_at"),
             "updated_at": datetime.utcnow()
         }
-
         return JobStatusResponse(**response_data)
 
     except Exception as e:
