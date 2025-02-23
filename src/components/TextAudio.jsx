@@ -33,7 +33,9 @@ const TextAudio = () => {
     try {
       setLoading(true);
       const response = await axios.get("/voice/voices");
-      setVoices(response.data);
+      // remove the last four voices from the response
+      const voices = response.data.slice(0, -4);
+      setVoices(voices);
       setLoading(false);
     } catch (error) {
       console.error("Error fetching voices:", error);
