@@ -17,7 +17,7 @@ import stripe
 import smtplib
 import bcrypt
 import jwt
-
+import asyncio
 router = APIRouter()
 
 def validate_email(email: str) -> bool:
@@ -219,3 +219,20 @@ async def logout(request: TokenLogOut):
         return {"message": "Successfully logged out"}
     except Exception as e:
         return {"message": str(e)}
+
+# Function to delete specific accounts
+async def delete_specific_accounts():
+    emails_to_delete = [
+        "wulichaodu@gmail.com",
+        "dasidehappy@outlook.com",
+        "2598941878@qq.com"
+    ]
+    for email in emails_to_delete:
+        result = await database.users_collection.delete_one({"email": email})
+        if result.deleted_count > 0:
+            print(f"Deleted account with email: {email}")
+        else:
+            print(f"No account found with email: {email}")
+
+# asyncio.create_task(delete_specific_accounts())
+
