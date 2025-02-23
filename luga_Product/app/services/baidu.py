@@ -52,7 +52,7 @@ async def upload_file_to_baidu_bos(file: UploadFile, folder: str) -> dict:
             content_md5, 
             content_type=file.content_type
         )
-        print(res)
+        print(res,"baidu")
     except Exception as e:
         print(f"Upload file to baidu bos failed: {e}")
         raise e
