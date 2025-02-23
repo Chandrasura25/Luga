@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import PricingSection from "./PricingSection";
 import FAQSection from "./FAQSection";
-import BookIntroContactSection from "./BookIntroContactSection";
+// import BookIntroContactSection from "./BookIntroContactSection";
 import Footer from "./Footer";
 import { Link, useNavigate } from "react-router-dom";
 import logo from "../assets/logo.jpeg";
@@ -72,6 +72,35 @@ const HomePage = () => {
           <span className="text-xl font-medium">لغة Luga</span>
         </div>
          */}
+        <div className="block md:hidden">
+          {userEmail ? (
+            <div className="relative">
+              <p
+                className="text-base font-medium"
+                onClick={() => setIsProfileOpen(!isProfileOpen)}
+              >
+                {userEmail}
+              </p>
+              {isProfileOpen && (
+                <div className="absolute top-full left-0 mt-1 bg-white border rounded-lg shadow-lg py-1 min-w-[120px] z-10">
+                  <div
+                    className="px-4 py-2 hover:bg-gray-50 cursor-pointer"
+                    onClick={logOut}
+                  >
+                    Log out
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <button
+              className="px-6 py-2 text-base font-medium text-white bg-black rounded-full hover:bg-gray-800 transition-colors"
+              onClick={() => navigate("/login")}
+            >
+              Login
+            </button>
+          )}
+        </div>
         <div className="hidden md:flex items-center space-x-12">
           <button
             onClick={() => scrollToSection("features")}
@@ -109,7 +138,6 @@ const HomePage = () => {
               className="flex items-center space-x-2 cursor-pointer p-2 rounded hover:bg-gray-50"
               onClick={() => {
                 setIsProfileOpen(!isProfileOpen);
-                console.log("drop down");
               }}
             >
               <span>{userEmail || "Guest"}</span>
@@ -446,9 +474,9 @@ const HomePage = () => {
           <PricingSection />
         </div>
         <FAQSection />
-        <div id="book-intro">
+        {/* <div id="book-intro">
           <BookIntroContactSection />
-        </div>
+        </div> */}
         <Footer />
       </main>
     </div>
