@@ -1,5 +1,9 @@
 import requests
-from fastapi import HTTPException
+from fastapi import HTTPException, UploadFile
+from tempfile import NamedTemporaryFile
+from moviepy import VideoFileClip
+import os
+
 
 class SyncLabsVideoService:
     def __init__(self, api_key: str):
@@ -77,3 +81,14 @@ class SyncLabsVideoService:
             raise HTTPException(status_code=500, detail=f"500: {str(req_err)}")
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"500: {str(e)}")
+
+async def get_video_duration(file_path: str) -> float:
+    """Extracts the duration of a video file."""
+    try:
+        clip = VideoFileClip(file_path)
+        duration = clip.duration  # Duration in seconds
+        clip.close()
+        return duration
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error extracting video duration: {str(e)}")
+
