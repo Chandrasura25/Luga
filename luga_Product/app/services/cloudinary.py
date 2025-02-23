@@ -27,34 +27,59 @@ async def upload_audio_to_cloudinary(audio_content: bytes, folder: str, file_nam
         raise HTTPException(status_code=500, detail=f"Cloudinary upload error: {str(e)}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An error occurred while uploading: {str(e)}")
-    
 async def upload_file_to_cloudinary(file: UploadFile, folder: str) -> dict:
     try:
-        if not is_file_allowed(file.filename):
-            raise HTTPException(status_code=400, detail=f"File type not allowed. Allowed types are: {', '.join(ALLOWED_EXTENSIONS)}")
-        
         file_content = await file.read()
-        if len(file_content) > MAX_FILE_SIZE:
-            raise HTTPException(status_code=400, detail=f"File size exceeds the limit of {MAX_FILE_SIZE / (1024 * 1024)} MB")
+        if not file_content:
+            raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+
+        # Generate a clean public_id
+        public_id = file.filename.split('.')[0].strip()
+        if not public_id:
+            raise HTTPException(status_code=500, detail="Invalid file name for public_id.")
 
         upload_result = cloudinary.uploader.upload(
             file_content,
             folder=folder,
-            resource_type="auto",
-            public_id=file.filename.split('.')[0]  
+            resource_type="video",
+            public_id=public_id  
         )
 
         return {
-            "public_id": upload_result['public_id'],
+            "public_id": upload_result['public_id'].strip(),
             "format": upload_result['format'],
             "resource_type": upload_result['resource_type'],
             "provider": "cloudinary"
         }
 
     except cloudinary.exceptions.Error as e:
-        raise HTTPException(status_code=500, detail=f"Cloudinary upload error: {str(e)}")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"An error occurred while uploading: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Cloudinary upload error: {str(e)}") 
+# async def upload_file_to_cloudinary(file: UploadFile, folder: str) -> dict:
+#     try:
+#         if not is_file_allowed(file.filename):
+#             raise HTTPException(status_code=400, detail=f"File type not allowed. Allowed types are: {', '.join(ALLOWED_EXTENSIONS)}")
+        
+#         file_content = await file.read()
+#         if len(file_content) > MAX_FILE_SIZE:
+#             raise HTTPException(status_code=400, detail=f"File size exceeds the limit of {MAX_FILE_SIZE / (1024 * 1024)} MB")
+
+#         upload_result = cloudinary.uploader.upload(
+#             file_content,
+#             folder=folder,
+#             resource_type="auto",
+#             public_id=file.filename.split('.')[0]  
+#         )
+#         return {
+#             "public_id": upload_result['public_id'],
+#             "format": upload_result['format'],
+#             "resource_type": upload_result['resource_type'],
+#             "provider": "cloudinary"
+#         }
+
+#     except cloudinary.exceptions.Error as e:
+#         raise HTTPException(status_code=500, detail=f"Cloudinary upload error: {str(e)}")
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=f"An error occurred while uploading: {str(e)}")
 
 def get_cloudinary_video_url(public_id: str, resource_type: str = "video", format: str = "mp4", transformations: list = None) -> str:
     if transformations is None:
