@@ -20,9 +20,9 @@ import logo from "../assets/logo.jpeg";
 const ChatbotInterface = () => {
   const [message, setMessage] = useState("");
   const [selectedLevel, setSelectedLevel] = useState("Advanced");
-  const [selectedLanguage, setSelectedLanguage] = useState("English");
+  // const [selectedLanguage, setSelectedLanguage] = useState("English");
   const [isLevelOpen, setIsLevelOpen] = useState(false);
-  const [isLanguageOpen, setIsLanguageOpen] = useState(false);
+  // const [isLanguageOpen, setIsLanguageOpen] = useState(false);
   const [activeView, setActiveView] = useState("chat");
   const [isLoading, setIsLoading] = useState(false);
   const { getUserEmail } = useAuth();
@@ -30,7 +30,7 @@ const ChatbotInterface = () => {
     //  "Balanced",
     //   "Basic"
     ];
-  const languages = ["Arabic", "Spanish", "French", "Chinese", "English"];
+  // const languages = ["Arabic", "Spanish", "French", "Chinese", "English"];
   const [chatHistory, setChatHistory] = useState([
     {
       type: "user",
@@ -58,10 +58,10 @@ const ChatbotInterface = () => {
     setIsLevelOpen(false);
   };
 
-  const handleLanguageSelect = (language) => {
-    setSelectedLanguage(language);
-    setIsLanguageOpen(false);
-  };
+  // const handleLanguageSelect = (language) => {
+  //   setSelectedLanguage(language);
+  //   setIsLanguageOpen(false);
+  // };
 
   const sidebarItems = [
     {
@@ -204,7 +204,7 @@ const ChatbotInterface = () => {
                 </div>
 
                 {/* Language Dropdown */}
-                <div className="relative">
+                {/* <div className="relative">
                   <div
                     className="flex items-center space-x-2 cursor-pointer p-2 rounded hover:bg-gray-50"
                     onClick={() => setIsLanguageOpen(!isLanguageOpen)}
@@ -236,7 +236,7 @@ const ChatbotInterface = () => {
                       ))}
                     </div>
                   )}
-                </div>
+                </div> */}
               </div>
 
               {/* Messages Area */}
