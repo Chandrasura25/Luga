@@ -10,6 +10,8 @@ from fastapi import Form
 import os
 from app.services.cloudinary import upload_audio_to_cloudinary
 from typing import List
+from io import BytesIO
+
 
 router = APIRouter()
 
@@ -231,7 +233,7 @@ async def upload_voice(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# Route upload document và trích xuất text
+
 @router.post("/upload-document", response_model=DocumentResponse)
 async def upload_document(user_email: str = Form(...), file: UploadFile = File(...)):
     """
@@ -239,24 +241,30 @@ async def upload_document(user_email: str = Form(...), file: UploadFile = File(.
     The extracted text can then be used for TTS.
     """
     user = await database.find_user_by_email(user_email)
-    if file.content_type == "text/plain":
-        content = await file.read()
-        text = content.decode("utf-8")
+    try:
+        file_content = await file.read()  # Read the file content into memory
+        file_stream = BytesIO(file_content)  # Wrap it in a BytesIO buffer
 
-    elif file.content_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-        doc = docx.Document(file.file)
-        text = "\n".join([para.text for para in doc.paragraphs])
+        if file.content_type == "text/plain":
+            text = file_content.decode("utf-8")
 
-    elif file.content_type == "application/pdf":
-        reader = PyPDF2.PdfReader(file.file)
-        text = ""
-        for page in reader.pages:
-            text += page.extract_text()
-        if not text:
-            raise HTTPException(status_code=400, detail="Could not extract text from the PDF file.")
+        elif file.content_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+            doc = docx.Document(file_stream)  # Pass the BytesIO object
+            text = "\n".join([para.text for para in doc.paragraphs])
 
-    else:
-        raise HTTPException(status_code=400, detail="Unsupported file type. Please upload a .docx, .txt, or .pdf file.")
+        elif file.content_type == "application/pdf":
+            reader = PyPDF2.PdfReader(file_stream)  # Pass the BytesIO object
+            text = "".join([page.extract_text() or "" for page in reader.pages])
+
+            if not text:
+                raise HTTPException(status_code=400, detail="Could not extract text from the PDF file.")
+
+        else:
+            raise HTTPException(status_code=400, detail="Unsupported file type. Please upload a .docx, .txt, or .pdf file.")
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred while processing the file: {str(e)}")
 
     return DocumentResponse(user_id=str(user['_id']), text=text)
+
 
