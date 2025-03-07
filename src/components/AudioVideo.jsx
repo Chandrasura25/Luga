@@ -11,7 +11,6 @@ import {
 } from "../components/ui/select";
 const TextToVideo = () => {
   const { toast } = useToast();
-  // const [text, setText] = useState("");
   const { getUserEmail } = useAuth();
   const [uploadLoading, setUploadLoading] = useState(false);
   const [videoLoading, setVideoLoading] = useState(false);
@@ -205,7 +204,9 @@ const TextToVideo = () => {
       console.error("Error getting job info:", error);
       toast({
         variant: "destructive",
-        title: "Error getting job info.",
+        title: error.response.data.detail
+          ? error.response.data.detail
+          : "Error getting job info.",
       });
     } finally {
       setInfoLoading(false);
