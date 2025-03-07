@@ -31,8 +31,6 @@ const PricingSection = () => {
     getSubscriptionStatus();
   }, []);
 
-
-
   const handleSubscribe = async (priceName, priceId) => {
     const email = getUserEmail();
     if (!email) {
@@ -89,6 +87,7 @@ const PricingSection = () => {
         <div className="grid md:grid-cols-3 gap-8 mx-auto">
           {plans
             .sort((a, b) => a.created - b.created)
+            // .filter(plan => plan.prices[0].unit_amount / 100 !== 1)
             .map((plan, index) => (
               <div
                 key={index}
