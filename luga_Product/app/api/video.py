@@ -271,81 +271,6 @@ async def sync_audio(request: SyncAudioRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# @router.post("/upload-video", response_model=VideoUploadResponse)
-# async def upload_video(
-#     video: UploadFile = File(...),
-#     user_email: str = Form(...)
-# ):
-#     try:
-#         user = await database.find_user_by_email(user_email)
-#         if not user:
-#             raise HTTPException(status_code=404, detail="User not found")
-
-#         # Check remaining video quota
-#         remaining_video_quota = user.get("quota", {}).get("video_quota", 0)
-#         if remaining_video_quota <= 0:
-#             raise HTTPException(status_code=403, detail="Insufficient video quota. Please upgrade your plan.")
-
-#         if not video.content_type.startswith('video/'):
-#             raise HTTPException(status_code=400, detail="Invalid file type. Please upload a video file.")
-
-#         # Save video temporarily to extract duration
-#         with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_video:
-#             temp_video.write(await video.read())
-#             temp_video_path = temp_video.name
-
-#         # Extract actual video duration
-#         try:
-#             clip = VideoFileClip(temp_video_path)
-#             actual_duration = clip.duration  # Duration in seconds
-#             clip.close()
-#         except Exception as e:
-#             raise HTTPException(status_code=500, detail=f"Error extracting video duration: {str(e)}")
-
-#         # Remove temporary file
-#         os.unlink(temp_video_path)
-
-#         if actual_duration > remaining_video_quota:
-#             raise HTTPException(status_code=403, detail="Not enough video quota for this upload.")
-
-#         # Deduct used video quota
-#         new_video_quota = max(0, remaining_video_quota - actual_duration)
-#         await database.db.users.update_one(
-#             {"_id": user["_id"]},
-#             {"$set": {"quota.video_quota": new_video_quota}}
-#         )
-
-#         # Upload video file
-#         video_upload_result = await upload_file_to_cloudinary(video, folder="videos")
-#         video_id = str(ObjectId())
-#         video_url = get_cloudinary_video_url(
-#             video_upload_result['public_id'],
-#             video_upload_result['resource_type'],
-#             video_upload_result['format']
-#         )
-
-#         video_record = {
-#             "user_id": str(user["_id"]),
-#             "video_id": video_id,
-#             "video_url": video_url,
-#             "file_name": video.filename,
-#             "duration": actual_duration,  # Save actual duration
-#             "created_at": datetime.utcnow(),
-#         }
-#         video_record.update(video_upload_result)
-
-#         await database.db.videos.insert_one(video_record)
-
-#         return VideoUploadResponse(
-#             user_id=str(user["_id"]),
-#             video_id=video_id,
-#             video_url=video_url,
-#             file_name=video.filename,
-#             message=f"Video uploaded successfully. Duration: {actual_duration} seconds"
-#         )
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=str(e))
-
 @router.post("/get-video", response_model=List[VideoUploadResponse])
 async def get_video(user_email: str = Body(..., embed=True)): 
     user = await database.find_user_by_email(user_email)
@@ -467,6 +392,7 @@ async def get_job_status(user_id: str, video_id: str):
         
         job_id = sync_record.get("job_id")
         if not job_id:
+            print("No job ID found for this sync record")
             raise HTTPException(
                 status_code=400, 
                 detail="No job ID found for this sync record"
@@ -504,14 +430,38 @@ async def get_job_status(user_id: str, video_id: str):
             "updated_at": datetime.utcnow()
         }
         return JobStatusResponse(**response_data)
-
     except Exception as e:
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(
-            status_code=500,
-            detail=f"An error occurred while checking job status: {str(e)}"
-        )
+      error_message = "An error occurred while processing your request."
+      error_str = str(e).lower()
+      if isinstance(e, HTTPException):
+          print(e)
+          raise HTTPException(status_code=e.status_code, detail=str(e.detail))
+        
+      if "invalid api key" in error_str:
+          error_message = "The API key provided is invalid. Please check your credentials."
+          status_code = 401
+      elif "key expired" in error_str:
+          error_message = "The API key has expired. Please renew your key."
+          status_code = 401
+      elif "500: 400: 500 server error" in error_str and "sync.so" in error_str:
+        print("The key is already invalid.")
+        error_message = "The key is already invalid."
+        status_code = 400  # Set to 400 if you want it treated as a bad request    
+      elif "500 server error" in error_str or "internal server error" in error_str:
+          error_message = "The server encountered an internal error. Please try again later."
+          status_code = 500
+      elif "400" in error_str:
+          error_message = "Bad request. Please check your input."
+          status_code = 400
+      else:
+          status_code = 500  # Default to 500 if the error is unrecognized
+    
+      print(e)
+      raise HTTPException(
+          status_code=status_code,
+          detail=error_message
+      )
+        
 
 @router.get("/jobs/{user_email}", response_model=list[JobStatusResponse])
 async def get_user_jobs(user_email: str, limit: int = 10, skip: int = 0):
