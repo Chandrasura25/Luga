@@ -201,11 +201,11 @@ const TextToVideo = () => {
         await getJobHistory();
       }
     } catch (error) {
-      if (error.response.data.detail === "400: 500 Server Error: Internal Server Error for url: https://api.sync.so/v2/generate/cf97c5b9-d17d-436e-8224-af7739018900") {
+      if (error.response.data.detail.includes("https://api.sync.so")) {
         toast({
           variant: "destructive",
-          title: "Error getting job info.",
-          description: "The key is already invalid.",
+          title: "Connection Error",
+          description: "A connection error occurred.",
         });
       } else {
         toast({
