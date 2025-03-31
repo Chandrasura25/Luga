@@ -23,18 +23,18 @@ const InviteFriends = () => {
   };
   
   return (
-    <Card className="p-4 bg-amber-50 border-amber-100">
+    <Card className="p-4 bg-blue-50 border-blue-100">
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-2">
-          <GiftIcon className="h-6 w-6 text-amber-400" />
-          <span className="text-amber-700 font-medium">
-            Invite friends and teammates to HeyGen!
+          <GiftIcon className="h-6 w-6 text-blue-500" />
+          <span className="text-blue-700 font-medium">
+            Invite friends and teammates to Luca AI!
           </span>
         </div>
         
         <Button 
           onClick={copyInvitation}
-          className="bg-orange-500 hover:bg-orange-600 text-white"
+          className="bg-blue-500 hover:bg-blue-600 text-white"
         >
           {copied ? "Copied!" : "Copy Invitation"}
         </Button>
