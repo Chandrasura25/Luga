@@ -8,6 +8,7 @@ import {
 import axios from "../api/axios";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "../hooks/use-toast";
+import logo from "../assets/logo.jpeg";
 
 const ResetCode = () => {
   const [resetCode, setResetCode] = useState("");
@@ -41,13 +42,16 @@ const ResetCode = () => {
   return (
     <div className="min-h-screen bg-white flex justify-center items-center">
       {/* container */}
-      <div className="max-w-[350px] flex flex-col gap-4">
-        <h2 className="text-2xl font-medium text-center">Welcome to Luga.ai</h2>
-        <p className="text-sm text-center mb-4">
+      <div className="max-w-md w-full flex flex-col gap-4">
+        <div className="w-full h-full">
+          <img src={logo} alt="logo" style={{ height: "100px" }} />
+        </div>
+        <h2 className="text-2xl font-medium">Welcome to Luga AI</h2>
+        <p className="text-sm mb-4">
           Enter the code sent to your email
         </p>
 
-        <form onSubmit={handleResetCode} className="space-y-4">
+        <form onSubmit={handleResetCode} className="space-y-4 w-full flex justify-center flex-col items-center">
           <InputOTP maxLength={6} onChange={setResetCode}>
             <InputOTPGroup>
               <InputOTPSlot index={0} />
@@ -61,11 +65,11 @@ const ResetCode = () => {
               <InputOTPSlot index={5} />
             </InputOTPGroup>
           </InputOTP>
-          <div className="flex items-center justify-center">
+          <div className="flex w-full items-center justify-center">
             <button
               type="submit"
               disabled={loading}
-              className="px-6 py-2.5 text-base font-medium text-white bg-black rounded-full hover:bg-gray-800 transition-colors w-full"
+              className="px-6 py-2.5 w-full text-base font-medium text-white bg-[#8EB4CC] rounded-md hover:bg-[#8EB4CC]/80 transition-colors"
             >
               {loading ? "Submitting..." : "Submit"}
             </button>
