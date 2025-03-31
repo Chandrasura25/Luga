@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import {
-  Settings,
   User,
   Activity,
   MessageSquare,
@@ -13,6 +12,7 @@ import {
 import TextAudio from "./TextAudio";
 import AudioVideo from "./AudioVideo";
 import ActivityPage from "./Activity";
+import Profile from "./Profile";
 import axios from "../api/axios";
 import { useAuth } from "./auth";
 import { toast } from "react-toastify";
@@ -26,11 +26,7 @@ const ChatbotInterface = () => {
   const [activeView, setActiveView] = useState("chat");
   const [isLoading, setIsLoading] = useState(false);
   const { getUserEmail } = useAuth();
-  const levels = [
-    "OpenAI",
-    "Deepseek",
-    "Gork",
-  ];
+  const levels = ["OpenAI", "Deepseek", "Gork"];
   // const languages = ["Arabic", "Spanish", "French", "Chinese", "English"];
   const [chatHistory, setChatHistory] = useState([]);
   const getHistory = async () => {
@@ -83,7 +79,12 @@ const ChatbotInterface = () => {
       active: activeView === "activity",
     },
     { icon: CreditCard, label: "Pricing" },
-    { icon: Settings, label: "Settings" },
+    {
+      icon: User,
+      label: "Profile",
+      onClick: () => setActiveView("profile"),
+      active: activeView === "profile",
+    },
   ];
 
   const recentChats = [
@@ -104,6 +105,7 @@ const ChatbotInterface = () => {
       const prompt = {
         prompt: message,
         user_email: userEmail,
+        level: selectedLevel,
       };
       setChatHistory((prev) => [...prev, { type: "user", text: message }]);
       setMessage("");
@@ -333,6 +335,8 @@ const ChatbotInterface = () => {
           <AudioVideo />
         ) : activeView === "activity" ? (
           <ActivityPage />
+        ) : activeView === "profile" ? (
+          <Profile />
         ) : (
           <div>No Activity</div>
         )}
