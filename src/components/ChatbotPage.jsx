@@ -84,7 +84,6 @@ const ChatbotInterface = () => {
       setConversations(response.data);
     } catch (error) {
       console.error("Error getting conversations:", error);
-      toast.error("Failed to load conversations");
     }
   };
 
@@ -340,11 +339,12 @@ const ChatbotInterface = () => {
               {/* Input Area */}
               <div className="p-4 border-t">
                 <div className="relative">
-                  <input
-                    type="text"
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    placeholder="Message Luga AI"
+                  <div className="flex flex-col">
+                    <input
+                      type="text"
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      placeholder="Message Luga AI"
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && !e.shiftKey) {
                         e.preventDefault();
@@ -353,10 +353,14 @@ const ChatbotInterface = () => {
                     }}
                     className="w-full p-4 pr-12 rounded-lg border focus:outline-none focus:border-gray-400"
                   />
+                  <p className="text-xs pl-2 text-gray-500">
+                    Chat with Luga AI
+                  </p>
+                  </div>
                   <button
                     onClick={sendMessage}
                     disabled={isLoading}
-                    className="absolute right-2 top-0 bg-blue-500 text-white px-4 py-2 rounded-lg"
+                    className="absolute right-2 top-2 bg-blue-500 text-white px-4 py-2 rounded-lg"
                   >
                     {isLoading ? (
                       <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
