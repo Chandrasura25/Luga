@@ -18,6 +18,8 @@ class Database:
         self.db = self.client[Config.MONGO_DB_NAME]
         self.users_collection = self.client["luga"]["users"]
         self.blacklist_collection = self.client["luga"]["blacklist_tokens"]
+        self.conversations_collection = self.client["luga"]["conversations"]
+        self.messages_collection = self.client["luga"]["messages"]
 
     async def find_user_by_email(self, email):
         collection = self.client["luga"]["users"]
@@ -85,20 +87,111 @@ class Database:
         active_processes = user.get("used_process_videos", 0)
 
         if active_processes >= process_limit:
-            raise HTTPException(status_code=403, detail="Video processing limit reached. Please wait or upgrade your plan.")
-def check_text_quota(user, text):
-    """ Check if user has enough text quota before processing """
-    user_plan = user["plan"]
-    max_text = quota_map[user_plan]["text_quota"]
-    used_text = user.get("used_text_characters", 0)
-    
-    if max_text != -1 and used_text + len(text) > max_text:
-        raise HTTPException(status_code=403, detail="Text quota exceeded. Upgrade your plan.")
+                raise HTTPException(status_code=403, detail="Video processing limit reached. Please wait or upgrade your plan.")
+    def check_text_quota(user, text):
+        """ Check if user has enough text quota before processing """
+        user_plan = user["plan"]
+        max_text = quota_map[user_plan]["text_quota"]
+        used_text = user.get("used_text_characters", 0)
 
-async def update_text_quota(user, text):
-    """ Update the used text quota after processing """
-    new_used_text = user["used_text_characters"] + len(text)
-    await database.db.users.update_one({"_id": user["_id"]}, {"$set": {"used_text_characters": new_used_text}})
+        if max_text != -1 and used_text + len(text) > max_text:
+            raise HTTPException(status_code=403, detail="Text quota exceeded. Upgrade your plan.")
 
+    async def update_text_quota(user, text):
+        """ Update the used text quota after processing """
+        new_used_text = user["used_text_characters"] + len(text)
+        await database.db.users.update_one({"_id": user["_id"]}, {"$set": {"used_text_characters": new_used_text}})
+
+    async def create_conversation(self, conversation_data: dict):
+        """Create a new conversation in MongoDB"""
+        result = await self.conversations_collection.insert_one(conversation_data)
+        return result.inserted_id
+
+    async def add_message_to_conversation(self, conversation_id: str, message_data: dict):
+        """Add a message to an existing conversation"""
+        # Update conversation's last activity timestamp
+        await self.conversations_collection.update_one(
+            {"conversation_id": conversation_id},
+            {"$set": {"updated_at": datetime.utcnow()}}
+        )
+
+        # Add the message
+        message_data["conversation_id"] = conversation_id
+        result = await self.messages_collection.insert_one(message_data)
+        return result.inserted_id
+
+    async def get_conversation(self, conversation_id: str, user_id: str):
+        """Get a conversation and its messages"""
+        # Get the conversation
+        conversation = await self.conversations_collection.find_one({
+            "conversation_id": conversation_id,
+            "user_id": user_id
+        })
+
+        if not conversation:
+            return None
+
+        # Get all messages for this conversation
+        messages = await self.messages_collection.find(
+            {"conversation_id": conversation_id}
+        ).sort("timestamp", 1).to_list(None)
+
+        # Format messages
+        formatted_messages = []
+        for msg in messages:
+            formatted_messages.append({
+                "prompt": msg["prompt"],
+                "response": msg["response"],
+                "timestamp": msg["timestamp"].isoformat()
+            })
+
+        return {
+            "conversation_id": conversation["conversation_id"],
+            "title": conversation["title"],
+            "messages": formatted_messages,
+            "created_at": conversation["created_at"].isoformat(),
+            "updated_at": conversation["updated_at"].isoformat()
+        }
+
+    async def get_user_conversations(self, user_id: str):
+        """Get all conversations for a user"""
+        cursor = self.conversations_collection.find(
+            {"user_id": user_id}
+        ).sort("updated_at", -1)
+
+        conversations = await cursor.to_list(None)
+        return conversations
+
+    async def delete_conversation(self, conversation_id: str, user_id: str):
+        """Delete a conversation and its messages"""
+        # Delete the conversation
+        result = await self.conversations_collection.delete_one({
+            "conversation_id": conversation_id,
+            "user_id": user_id
+        })
+
+        if result.deleted_count > 0:
+            # Delete all associated messages
+            await self.messages_collection.delete_many({
+                "conversation_id": conversation_id
+            })
+            return True
+        return False
+
+    async def update_conversation_title(self, conversation_id: str, user_id: str, new_title: str):
+        """Update conversation title"""
+        result = await self.conversations_collection.update_one(
+            {
+                "conversation_id": conversation_id,
+                "user_id": user_id
+            },
+            {
+                "$set": {
+                    "title": new_title,
+                    "updated_at": datetime.utcnow()
+                }
+            }
+        )
+        return result.modified_count > 0
 
 database = Database()
