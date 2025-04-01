@@ -159,3 +159,10 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str
 
+class Voice(BaseModel):
+    id: str = Field(default_factory=lambda: str(ObjectId()))
+    user_id: str
+    voice_id: str
+    name: str
+    description: str
+
