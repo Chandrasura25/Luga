@@ -13,6 +13,12 @@ import {
 import { useAuth } from "./auth";
 import { Slider } from "../components/ui/slider";
 import { useToast } from "../hooks/use-toast";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "../components/ui/tooltip"
 const TextAudio = () => {
   const { toast } = useToast();
   const { getUserEmail } = useAuth();
@@ -324,9 +330,19 @@ const TextAudio = () => {
               </label>
             </div>
             <div className="flex space-x-4">
-              <button className="rounded-full p-2 bg-black text-white hover:bg-gray-800 flex items-center justify-center">
-                <Mic className="w-5 h-5" />
-              </button>
+
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <button className="rounded-full p-2 bg-black text-white hover:bg-gray-800 flex items-center justify-center">
+                      <Mic className="w-5 h-5" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="capitalize">Clone your voice</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             <button
               className="rounded-full px-6 py-2 bg-black text-white hover:bg-gray-800 flex items-center"
               disabled={isLoading}
