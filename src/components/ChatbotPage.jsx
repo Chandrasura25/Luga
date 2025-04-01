@@ -8,6 +8,7 @@ import {
   Video,
   CreditCard,
   Sliders,
+  Plus
 } from "lucide-react";
 import TextAudio from "./TextAudio";
 import AudioVideo from "./AudioVideo";
@@ -17,42 +18,52 @@ import axios from "../api/axios";
 import { useAuth } from "./auth";
 import { toast } from "react-toastify";
 import logo from "../assets/logo.jpeg";
+
 const ChatbotInterface = () => {
   const [message, setMessage] = useState("");
-  const [selectedLevel, setSelectedLevel] = useState("Advanced");
-  // const [selectedLanguage, setSelectedLanguage] = useState("English");
+  const [selectedLevel, setSelectedLevel] = useState("OpenAI");
   const [isLevelOpen, setIsLevelOpen] = useState(false);
-  // const [isLanguageOpen, setIsLanguageOpen] = useState(false);
   const [activeView, setActiveView] = useState("chat");
   const [isLoading, setIsLoading] = useState(false);
   const { getUserEmail } = useAuth();
-  const levels = ["OpenAI", "Deepseek", "Gork"];
-  // const languages = ["Arabic", "Spanish", "French", "Chinese", "English"];
-  const [chatHistory, setChatHistory] = useState([]);
-  const getHistory = async () => {
+  const levels = ["OpenAI", "Deepseek", "Grok"];
+  const [conversations, setConversations] = useState([]);
+  const [activeConversation, setActiveConversation] = useState(null);
+  const [messages, setMessages] = useState([]);
+
+  // Fetch user's conversations
+  const getConversations = async () => {
     try {
       const userEmail = getUserEmail();
-      const response = await axios.post("/text/history", {
-        user_email: userEmail,
-      });
-      setChatHistory(response.data);
+      const response = await axios.get(`/text/conversations?user_email=${userEmail}`);
+      setConversations(response.data);
     } catch (error) {
-      console.error("Error getting history:", error);
+      console.error("Error getting conversations:", error);
+      toast.error("Failed to load conversations");
     }
   };
+
+  // Fetch conversation messages
+  const getConversation = async (conversationId) => {
+    try {
+      const userEmail = getUserEmail();
+      const response = await axios.get(`/text/conversation/${conversationId}?user_email=${userEmail}`);
+      setMessages(response.data.messages);
+      setActiveConversation(response.data);
+    } catch (error) {
+      console.error("Error getting conversation:", error);
+      toast.error("Failed to load conversation");
+    }
+  };
+
   useEffect(() => {
-    getHistory();
+    getConversations();
   }, []);
+
   const handleLevelSelect = (level) => {
     setSelectedLevel(level);
     setIsLevelOpen(false);
   };
-
-  // const handleLanguageSelect = (language) => {
-  //   setSelectedLanguage(language);
-  //   setIsLanguageOpen(false);
-  // };
-
   const sidebarItems = [
     {
       icon: FileText,
@@ -86,36 +97,50 @@ const ChatbotInterface = () => {
       active: activeView === "profile",
     },
   ];
-
-  const recentChats = [
-    // "Game Night Planning",
-    // "Uncover Lab Learn",
-    // "Using Origin in Vietnam",
-    // "Clientless Public Work",
-    // "Developer Team Size",
-    // "Instagram Post Embed",
-    // "Video Editing Community",
-    // "Hi Response Summary",
-  ];
+  const startNewConversation = () => {
+    setActiveConversation(null);
+    setMessages([]);
+  };
 
   const sendMessage = async () => {
+    if (!message.trim()) return;
+
     try {
       setIsLoading(true);
       const userEmail = getUserEmail();
       const prompt = {
         prompt: message,
         user_email: userEmail,
-        level: selectedLevel,
+        conversation_id: activeConversation?.conversation_id,
+        level: selectedLevel
       };
-      setChatHistory((prev) => [...prev, { type: "user", text: message }]);
+
+      // Add user message to UI immediately
+      setMessages(prev => [...prev, {
+        prompt: message,
+        response: "",
+        timestamp: new Date().toISOString()
+      }]);
       setMessage("");
+
       const response = await axios.post("/text/generate", prompt);
-      setChatHistory((prev) => [
-        ...prev,
-        { type: "bot", text: response.data.response },
-      ]);
+      
+      // Update messages with the complete conversation
+      setMessages(response.data.messages);
+      setActiveConversation({
+        ...response.data,
+        conversation_id: response.data.conversation_id,
+        title: response.data.title
+      });
+
+      // Refresh conversations list to show new conversation
+      getConversations();
+
+      if (response.data.warning) {
+        toast.warning(response.data.warning);
+      }
     } catch (error) {
-      toast.error(error.response.data.detail);
+      toast.error(error.response?.data?.detail || "Failed to send message");
       console.error("Error sending message:", error);
     } finally {
       setIsLoading(false);
@@ -171,109 +196,69 @@ const ChatbotInterface = () => {
             {/* Chat Area */}
             <div className="flex-1 flex flex-col bg-white rounded-2xl overflow-hidden shadow-sm">
               {/* Top Bar with Dropdowns */}
-              <div className="p-4 border-b flex items-center space-x-4">
-                {/* Level Dropdown */}
-                <div className="relative">
-                  <div
-                    className="flex items-center space-x-2 cursor-pointer p-2 rounded hover:bg-gray-50"
-                    onClick={() => setIsLevelOpen(!isLevelOpen)}
-                  >
-                    <span>{selectedLevel}</span>
-                    <svg
-                      className="w-4 h-4"
-                      viewBox="0 0 20 20"
-                      fill="currentColor"
+              <div className="p-4 border-b flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  {/* Level Dropdown */}
+                  <div className="relative">
+                    <div
+                      className="flex items-center space-x-2 cursor-pointer p-2 rounded hover:bg-gray-50"
+                      onClick={() => setIsLevelOpen(!isLevelOpen)}
                     >
-                      <path
-                        fillRule="evenodd"
-                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                  </div>
-
-                  {isLevelOpen && (
-                    <div className="absolute top-full left-0 mt-1 bg-white border rounded-lg shadow-lg py-1 min-w-[120px] z-10">
-                      {levels.map((level) => (
-                        <div
-                          key={level}
-                          className="px-4 py-2 hover:bg-gray-50 cursor-pointer"
-                          onClick={() => handleLevelSelect(level)}
-                        >
-                          {level}
-                        </div>
-                      ))}
+                      <span>{selectedLevel}</span>
+                      <svg
+                        className="w-4 h-4"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
                     </div>
-                  )}
+
+                    {isLevelOpen && (
+                      <div className="absolute top-full left-0 mt-1 bg-white border rounded-lg shadow-lg py-1 min-w-[120px] z-10">
+                        {levels.map((level) => (
+                          <div
+                            key={level}
+                            className="px-4 py-2 hover:bg-gray-50 cursor-pointer"
+                            onClick={() => handleLevelSelect(level)}
+                          >
+                            {level}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
-
-                {/* Language Dropdown */}
-                {/* <div className="relative">
-                  <div
-                    className="flex items-center space-x-2 cursor-pointer p-2 rounded hover:bg-gray-50"
-                    onClick={() => setIsLanguageOpen(!isLanguageOpen)}
-                  >
-                    <span>{selectedLanguage}</span>
-                    <svg
-                      className="w-4 h-4"
-                      viewBox="0 0 20 20"
-                      fill="currentColor"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                  </div>
-
-                  {isLanguageOpen && (
-                    <div className="absolute top-full left-0 mt-1 bg-white border rounded-lg shadow-lg py-1 min-w-[120px] z-10">
-                      {languages.map((language) => (
-                        <div
-                          key={language}
-                          className="px-4 py-2 hover:bg-gray-50 cursor-pointer"
-                          onClick={() => handleLanguageSelect(language)}
-                        >
-                          {language}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div> */}
+                {activeConversation && (
+                  <div className="text-lg font-semibold">{activeConversation.title}</div>
+                )}
               </div>
 
               {/* Messages Area */}
               <div className="flex-1 overflow-y-auto p-4">
-                {chatHistory.map((chat, index) => (
-                  <>
-                    <div key={index}>
-                      {chat.type === "user" && (
-                        <div className="flex items-start space-x-3 mb-6">
-                          <div className="w-8 h-8 rounded-full bg-gray-200" />
-                          <div className="flex-1">
-                            <div className="bg-gray-100 rounded-2xl p-4 inline-block max-w-3xl">
-                              <p className="text-gray-900 text-left">
-                                {chat.text}
-                              </p>
-                            </div>
-                          </div>
+                {messages.map((msg, index) => (
+                  <div key={index} className="mb-4">
+                    <div className="flex items-start space-x-3 mb-4">
+                      <div className="w-8 h-8 rounded-full bg-gray-200" />
+                      <div className="flex-1">
+                        <div className="bg-gray-100 rounded-2xl p-4 inline-block max-w-3xl">
+                          <p className="text-gray-900">{msg.prompt}</p>
                         </div>
-                      )}
-                      {chat.type === "bot" && (
-                        <div className="flex items-start space-x-3 mb-4">
-                          <div className="w-8 h-8 rounded-full bg-gray-200" />
-                          <div className="flex-1">
-                            <div className="inline-block max-w-3xl">
-                              <p className="text-gray-900 text-left whitespace-pre-line">
-                                {chat.text}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
+                      </div>
                     </div>
-                  </>
+                    <div className="flex items-start space-x-3">
+                      <div className="w-8 h-8 rounded-full bg-blue-200" />
+                      <div className="flex-1">
+                        <div className="inline-block max-w-3xl">
+                          <p className="text-gray-900 whitespace-pre-line">{msg.response}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 ))}
               </div>
 
@@ -286,45 +271,49 @@ const ChatbotInterface = () => {
                     onChange={(e) => setMessage(e.target.value)}
                     placeholder="Message Luga AI"
                     onKeyDown={(e) => {
-                      if (e.key === "Enter") {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
                         sendMessage();
                       }
                     }}
                     className="w-full p-4 pr-12 rounded-lg border focus:outline-none focus:border-gray-400"
                   />
-                  {isLoading ? (
-                    <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                      <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-gray-900"></div>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={sendMessage}
-                      disabled={isLoading}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 bg-blue-500 text-white px-4 py-2 rounded-lg"
-                    >
-                      {isLoading ? (
-                        <span className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-gray-900"></span>
-                      ) : (
-                        "Send"
-                      )}
-                    </button>
-                  )}
+                  <button
+                    onClick={sendMessage}
+                    disabled={isLoading}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-blue-500 text-white px-4 py-2 rounded-lg"
+                  >
+                    {isLoading ? (
+                      <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
+                    ) : (
+                      "Send"
+                    )}
+                  </button>
                 </div>
-                <p className="text-gray-500 font-semibold text-xs">
-                  Message Luga AI (Enter to send)
-                </p>
               </div>
             </div>
 
-            {/* Right Sidebar - Recent Chats */}
+            {/* Right Sidebar - Conversations */}
             <div className="w-64 bg-white rounded-2xl p-4 shadow-sm">
-              {recentChats.map((chat, index) => (
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-semibold">Conversations</h2>
+                <button
+                  onClick={startNewConversation}
+                  className="p-2 hover:bg-gray-100 rounded-full"
+                >
+                  <Plus className="w-5 h-5" />
+                </button>
+              </div>
+              {conversations.map((conv) => (
                 <div
-                  key={index}
-                  className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer text-left w-full"
+                  key={conv.conversation_id}
+                  onClick={() => getConversation(conv.conversation_id)}
+                  className={`flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer ${
+                    activeConversation?.conversation_id === conv.conversation_id ? 'bg-gray-100' : ''
+                  }`}
                 >
                   <MessageSquare className="w-5 h-5" />
-                  <span>{chat}</span>
+                  <span className="truncate">{conv.title}</span>
                 </div>
               ))}
             </div>
