@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Play, Pause, Download, Edit3, Check } from "lucide-react";
+import { Play, Pause, Download, Edit3, Check, Mic } from "lucide-react";
 import axios, { axiosPrivate } from "../api/axios";
 import {
   Select,
@@ -323,6 +323,10 @@ const TextAudio = () => {
                 </span>
               </label>
             </div>
+            <div className="flex space-x-4">
+              <button className="rounded-full p-2 bg-black text-white hover:bg-gray-800 flex items-center justify-center">
+                <Mic className="w-5 h-5" />
+              </button>
             <button
               className="rounded-full px-6 py-2 bg-black text-white hover:bg-gray-800 flex items-center"
               disabled={isLoading}
@@ -334,6 +338,7 @@ const TextAudio = () => {
                 <span className="text-sm">Generate speech</span>
               )}
             </button>
+            </div>
           </div>
         </div>
       </div>
