@@ -26,16 +26,16 @@ async def create_prompt(prompt: TextCreate):
                 title_prompt = f"Generate a brief 3-5 word title summarizing this conversation:\n{prompt.prompt}"
                 title = await generate_response(title_prompt)
                 title = title.strip().strip('"\'').strip()
-            elif prompt.level.lower() == "deepseek":
-                response_text = await generate_response_deepseek(prompt.prompt)
-                if not prompt.conversation_id:
-                    title_prompt = f"Generate a brief 3-5 word title summarizing this conversation:\n{prompt.prompt}"
+        elif prompt.level.lower() == "deepseek":
+            response_text = await generate_response_deepseek(prompt.prompt)
+            if not prompt.conversation_id:
+                title_prompt = f"Generate a brief 3-5 word title summarizing this conversation:\n{prompt.prompt}"
                 title = await generate_response_deepseek(title_prompt)
                 title = title.strip().strip('"\'').strip()
-            elif prompt.level.lower() == "grok":
-                response_text = await generate_response_grok(prompt.prompt)
-                if not prompt.conversation_id:
-                    title_prompt = f"Generate a brief 3-5 word title summarizing this conversation:\n{prompt.prompt}"
+        elif prompt.level.lower() == "grok":
+            response_text = await generate_response_grok(prompt.prompt)
+            if not prompt.conversation_id:
+                title_prompt = f"Generate a brief 3-5 word title summarizing this conversation:\n{prompt.prompt}"
                 title = await generate_response_grok(title_prompt)
                 title = title.strip().strip('"\'').strip()
         else:
@@ -86,12 +86,12 @@ async def create_prompt(prompt: TextCreate):
             "messages": conversation["messages"],
             "timestamp": timestamp.isoformat()
         }
-
+        
         if user.get("quota", {}).get("text_quota", 0) <= 10:
             response["warning"] = "Your text quota is running low."
 
         return response
-
+    
     except Exception as e:
         print(e)
         raise HTTPException(status_code=500, detail=str(e))
