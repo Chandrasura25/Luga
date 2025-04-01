@@ -5,6 +5,9 @@ from app.api import video
 from app.api import text
 from app.api import user
 from app.api import stripe
+import uvicorn
+import logging
+
 
 app = FastAPI(openapi_url="/openapi.json", docs_url="/docs", redoc_url="/redoc")
 
@@ -26,9 +29,6 @@ app.include_router(video.router, prefix="/api/video")
 app.include_router(text.router, prefix="/api/text")
 app.include_router(user.router, prefix="/api/user")
 app.include_router(stripe.router, prefix="/api/stripe")
-
-import uvicorn
-import logging
 
 if __name__ == "__main__": 
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True, log_level="debug")
