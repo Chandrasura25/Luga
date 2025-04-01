@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Respons
 from fastapi.responses import FileResponse
 from app.services.voice_service import ElevenLabsService
 from app.db.database import database
-from app.db.models import Audio, VoiceUploadResponse, DocumentResponse, TextToSpeechRequest, UserEmailRequest, UpdateAudioNameRequest
+from app.db.models import Audio, VoiceUploadResponse, DocumentResponse, TextToSpeechRequest, UserEmailRequest, UpdateAudioNameRequest, Voice
 from bson import ObjectId
 import docx
 import PyPDF2
@@ -232,8 +232,6 @@ async def upload_voice(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
-
 @router.post("/upload-document", response_model=DocumentResponse)
 async def upload_document(user_email: str = Form(...), file: UploadFile = File(...)):
     """
@@ -267,4 +265,74 @@ async def upload_document(user_email: str = Form(...), file: UploadFile = File(.
 
     return DocumentResponse(user_id=str(user['_id']), text=text)
 
+@router.post("/clone-voice")
+async def clone_voice(
+    user_email: str = Form(...),
+    name: str = Form(...),
+    description: str = Form(...),
+    file: UploadFile = File(...),
+    service: ElevenLabsService = Depends(get_eleven_labs_service)
+):
+    """
+    Clone a voice from an audio file.
+    """
+    try:
+        # Validate file type
+        if not file.content_type.startswith("audio/"):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid file type. Please upload an audio file."
+            )
 
+        # Get user
+        user = await database.find_user_by_email(user_email)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # Read file content
+        file_content = await file.read()
+        
+        # Clone voice using ElevenLabs API
+        cloned_voice = service.clone_voice(
+            name=name,
+            description=description,
+            audio_file=file_content
+        )
+
+        # Store voice information in database
+        voice_record = {
+            "user_id": str(user["_id"]),
+            "voice_id": cloned_voice["voice_id"],
+            "name": name,
+            "description": description,
+            "is_cloned": True
+        }
+        
+        await database.db.voice.insert_one(voice_record)
+
+        return {
+            "status": "success",
+            "voice_id": cloned_voice["voice_id"],
+            "message": "Voice cloned successfully"
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/cloned-voices", response_model=List[Voice])
+async def get_clone_voice(request: UserEmailRequest):
+    """
+    Get all cloned voices for a user.
+    """
+    try:
+        user = await database.find_user_by_email(request.email)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Use to_list() to convert the cursor to a list
+        cloned_voices_cursor = database.db.voice.find({"user_id": str(user["_id"])})
+        cloned_voices = await cloned_voices_cursor.to_list(length=None)
+        
+        return cloned_voices
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
