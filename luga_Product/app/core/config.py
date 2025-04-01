@@ -35,3 +35,5 @@ class Config:
     BAIDU_BOS_ACCESS_KEY_ID = os.getenv("BAIDU_BOS_ACCESS_KEY_ID")
     BAIDU_BOS_SECRET_ACCESS_KEY = os.getenv("BAIDU_BOS_SECRET_ACCESS_KEY")
     BAIDU_BOS_BUCKET_NAME = os.getenv("BAIDU_BOS_BUCKET_NAME", "luga-ai-bucket")
+    GROK_API_KEY = os.getenv("GROK_API_KEY")
+    DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
