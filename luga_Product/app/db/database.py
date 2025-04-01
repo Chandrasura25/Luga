@@ -142,7 +142,8 @@ class Database:
             formatted_messages.append({
                 "prompt": msg["prompt"],
                 "response": msg["response"],
-                "timestamp": msg["timestamp"].isoformat()
+                "timestamp": msg["timestamp"].isoformat(),
+                "conversation_id": conversation_id
             })
 
         return {
