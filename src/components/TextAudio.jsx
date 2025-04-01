@@ -35,6 +35,16 @@ const TextAudio = () => {
   const [playingIndex, setPlayingIndex] = useState(null);
   const [editingIndex, setEditingIndex] = useState(null);
   const [uploadLoading, setUploadLoading] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordedChunks, setRecordedChunks] = useState([]);
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  const [showCloneDialog, setShowCloneDialog] = useState(false);
+  const [voiceName, setVoiceName] = useState("");
+  const [voiceDescription, setVoiceDescription] = useState("");
+  const [cloneVoices, setCloneVoices] = useState([]);
+  const mediaRecorderRef = useRef(null);
+  const recordingTimerRef = useRef(null);
+
   const fetchVoices = async () => {
     try {
       setLoading(true);
@@ -46,6 +56,16 @@ const TextAudio = () => {
     } catch (error) {
       console.error("Error fetching voices:", error);
       setLoading(false);
+    }
+  };
+  const fetchCloneVoices = async () => {
+    try {
+      const response = await axiosPrivate.post("/voice/cloned-voices", {
+        email: getUserEmail(),
+      });
+      setCloneVoices(response.data);  
+    } catch (error) {
+      console.error("Error fetching clone voices:", error);
     }
   };
 
@@ -65,6 +85,7 @@ const TextAudio = () => {
   useEffect(() => {
     fetchVoices();
     fetchUserVoices();
+    fetchCloneVoices();
   }, []);
 
   const audioRefs = useRef([]);
@@ -254,7 +275,113 @@ const TextAudio = () => {
     }
   };
   
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      const chunks = [];
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          chunks.push(e.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        new Blob(chunks, { type: "audio/mp3" });
+        setRecordedChunks(chunks);
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
       
+      // Start recording duration timer
+      let duration = 0;
+      recordingTimerRef.current = setInterval(() => {
+        duration += 1;
+        setRecordingDuration(duration);
+        
+        // Stop recording after 5 minutes
+        if (duration >= 300) {
+          stopRecording();
+        }
+      }, 1000);
+    } catch (err) {
+      console.error("Error accessing microphone:", err);
+      toast({
+        variant: "destructive",
+        title: "Error accessing microphone",
+        description: "Please ensure you have granted microphone permissions.",
+      });
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+      setIsRecording(false);
+      clearInterval(recordingTimerRef.current);
+      setShowCloneDialog(true);
+    }
+  };
+
+  const handleCloneVoice = async () => {
+    if (recordedChunks.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "No recording found",
+        description: "Please record your voice first.",
+      });
+      return;
+    }
+
+    if (!voiceName.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Voice name required",
+        description: "Please enter a name for your voice.",
+      });
+      return;
+    }
+
+    try {
+      const audioBlob = new Blob(recordedChunks, { type: "audio/mp3" });
+      const formData = new FormData();
+      formData.append("file", audioBlob, "recording.mp3");
+      formData.append("user_email", getUserEmail());
+      formData.append("name", voiceName);
+      formData.append("description", voiceDescription || `Cloned voice: ${voiceName}`);
+
+      await axiosPrivate.post("/voice/clone-voice", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      toast({
+        description: "Voice cloned successfully!",
+      });
+
+      // Reset state
+      setRecordedChunks([]);
+      setVoiceName("");
+      setVoiceDescription("");
+      setShowCloneDialog(false);
+      setRecordingDuration(0);
+
+      // Refresh voices
+      fetchCloneVoices();
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error cloning voice",
+        description: error.response?.data?.detail || "An error occurred while cloning your voice.",
+      });
+    }
+  };
+  console.log(cloneVoices);
 
   return (
     <>
@@ -330,16 +457,23 @@ const TextAudio = () => {
               </label>
             </div>
             <div className="flex space-x-4">
-
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger>
-                    <button className="rounded-full p-2 bg-black text-white hover:bg-gray-800 flex items-center justify-center">
+                    <button 
+                      className={`rounded-full p-2 ${isRecording ? 'bg-red-500' : 'bg-black'} text-white hover:opacity-90 flex items-center justify-center`}
+                      onClick={isRecording ? stopRecording : startRecording}
+                    >
                       <Mic className="w-5 h-5" />
                     </button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p className="capitalize">Clone your voice</p>
+                    <p className="capitalize">{isRecording ? 'Stop Recording' : 'Clone your voice'}</p>
+                    {isRecording && (
+                      <p className="text-xs text-gray-500">
+                        Recording: {Math.floor(recordingDuration / 60)}:{(recordingDuration % 60).toString().padStart(2, '0')}
+                      </p>
+                    )}
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -481,7 +615,59 @@ const TextAudio = () => {
       </div>
     </div>
 
-
+    {/* Voice Cloning Dialog */}
+    {showCloneDialog && (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+        <div className="bg-white rounded-lg p-6 w-96">
+          <h2 className="text-xl font-bold mb-4">Clone Your Voice</h2>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Voice Name</label>
+              <input
+                type="text"
+                value={voiceName}
+                onChange={(e) => setVoiceName(e.target.value)}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-black focus:ring-black"
+                placeholder="Enter a name for your voice"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Description (Optional)</label>
+              <textarea
+                value={voiceDescription}
+                onChange={(e) => setVoiceDescription(e.target.value)}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-black focus:ring-black"
+                placeholder="Enter a description for your voice"
+                rows={3}
+              />
+            </div>
+            <div className="text-sm text-gray-500">
+              Recording duration: {Math.floor(recordingDuration / 60)}:{(recordingDuration % 60).toString().padStart(2, '0')}
+            </div>
+            <div className="flex space-x-4">
+              <button
+                className="flex-1 bg-gray-200 text-gray-800 rounded-md py-2 hover:bg-gray-300"
+                onClick={() => {
+                  setShowCloneDialog(false);
+                  setRecordedChunks([]);
+                  setVoiceName("");
+                  setVoiceDescription("");
+                  setRecordingDuration(0);
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                className="flex-1 bg-black text-white rounded-md py-2 hover:bg-gray-800"
+                onClick={handleCloneVoice}
+              >
+                Clone Voice
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
     </>
   );
 };
