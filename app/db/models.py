@@ -30,3 +30,4 @@ class ConversationResponse(BaseModel):
     conversation_id: str
     title: str
     messages: List[Message] 
+    timestamp: str
