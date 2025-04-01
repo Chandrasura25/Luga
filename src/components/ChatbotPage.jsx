@@ -8,7 +8,9 @@ import {
   Video,
   CreditCard,
   Sliders,
-  Plus
+  Plus,
+  Copy,
+  CheckCircle // Import the check circle icon for the copied state
 } from "lucide-react";
 import TextAudio from "./TextAudio";
 import AudioVideo from "./AudioVideo";
@@ -30,6 +32,7 @@ const ChatbotInterface = () => {
   const [conversations, setConversations] = useState([]);
   const [activeConversation, setActiveConversation] = useState(null);
   const [messages, setMessages] = useState([]);
+  const [copyIcon, setCopyIcon] = useState(Copy); // State to manage the copy icon
 
   // Fetch user's conversations
   const getConversations = async () => {
@@ -147,6 +150,17 @@ const ChatbotInterface = () => {
     }
   };
 
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text);
+    toast.success("Copied to clipboard!");
+    setCopyIcon(CheckCircle); // Change icon to check circle
+
+    // Change back to copy icon after 10 seconds
+    setTimeout(() => {
+      setCopyIcon(Copy);
+    }, 10000);
+  };
+
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Left Sidebar */}
@@ -253,8 +267,18 @@ const ChatbotInterface = () => {
                     <div className="flex items-start space-x-3">
                       <div className="w-8 h-8 rounded-full bg-blue-200" />
                       <div className="flex-1">
-                        <div className="inline-block max-w-3xl">
+                        <div className="inline-block max-w-3xl relative">
                           <p className="text-gray-900 whitespace-pre-line">{msg.response}</p>
+                          <button
+                            onClick={() => copyToClipboard(msg.response)}
+                            className="absolute right-2 top-0 transform -translate-y-1/2 p-1 rounded hover:bg-gray-200 transition"
+                          >
+                            {copyIcon === CheckCircle ? (
+                              <CheckCircle className="w-4 h-4 text-green-500" />
+                            ) : (
+                              <Copy className="w-4 h-4" />
+                            )}
+                          </button>
                         </div>
                       </div>
                     </div>
