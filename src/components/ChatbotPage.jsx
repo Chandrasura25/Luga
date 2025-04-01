@@ -10,7 +10,7 @@ import {
   Sliders,
   Plus,
   Copy,
-  CheckCircle // Import the check circle icon for the copied state
+  CheckCircle, // Import the check circle icon for the copied state
 } from "lucide-react";
 import TextAudio from "./TextAudio";
 import AudioVideo from "./AudioVideo";
@@ -34,11 +34,53 @@ const ChatbotInterface = () => {
   const [messages, setMessages] = useState([]);
   const [copyIcon, setCopyIcon] = useState(Copy); // State to manage the copy icon
 
+  const groupConversationsByDate = (conversations) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    const last7Days = new Date(today);
+    last7Days.setDate(last7Days.getDate() - 7);
+
+    const last30Days = new Date(today);
+    last30Days.setDate(last30Days.getDate() - 30);
+
+    const groups = {
+      today: [],
+      yesterday: [],
+      previous7Days: [],
+      previous30Days: [],
+      older: [],
+    };
+
+    conversations.forEach((conv) => {
+      const convDate = new Date(conv.created_at);
+      convDate.setHours(0, 0, 0, 0);
+
+      if (convDate.getTime() === today.getTime()) {
+        groups.today.push(conv);
+      } else if (convDate.getTime() === yesterday.getTime()) {
+        groups.yesterday.push(conv);
+      } else if (convDate >= last7Days && convDate < yesterday) {
+        groups.previous7Days.push(conv);
+      } else if (convDate >= last30Days && convDate < last7Days) {
+        groups.previous30Days.push(conv);
+      } else {
+        groups.older.push(conv);
+      }
+    });
+
+    return groups;
+  };
   // Fetch user's conversations
   const getConversations = async () => {
     try {
       const userEmail = getUserEmail();
-      const response = await axios.get(`/text/conversations?user_email=${userEmail}`);
+      const response = await axios.get(
+        `/text/conversations?user_email=${userEmail}`
+      );
       setConversations(response.data);
     } catch (error) {
       console.error("Error getting conversations:", error);
@@ -50,7 +92,9 @@ const ChatbotInterface = () => {
   const getConversation = async (conversationId) => {
     try {
       const userEmail = getUserEmail();
-      const response = await axios.get(`/text/conversation/${conversationId}?user_email=${userEmail}`);
+      const response = await axios.get(
+        `/text/conversation/${conversationId}?user_email=${userEmail}`
+      );
       setMessages(response.data.messages);
       setActiveConversation(response.data);
     } catch (error) {
@@ -115,25 +159,28 @@ const ChatbotInterface = () => {
         prompt: message,
         user_email: userEmail,
         conversation_id: activeConversation?.conversation_id,
-        level: selectedLevel
+        level: selectedLevel,
       };
 
       // Add user message to UI immediately
-      setMessages(prev => [...prev, {
-        prompt: message,
-        response: "",
-        timestamp: new Date().toISOString()
-      }]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          prompt: message,
+          response: "",
+          timestamp: new Date().toISOString(),
+        },
+      ]);
       setMessage("");
 
       const response = await axios.post("/text/generate", prompt);
-      
+
       // Update messages with the complete conversation
       setMessages(response.data.messages);
       setActiveConversation({
         ...response.data,
         conversation_id: response.data.conversation_id,
-        title: response.data.title
+        title: response.data.title,
       });
 
       // Refresh conversations list to show new conversation
@@ -248,7 +295,9 @@ const ChatbotInterface = () => {
                   </div>
                 </div>
                 {activeConversation && (
-                  <div className="text-lg font-semibold">{activeConversation.title}</div>
+                  <div className="text-lg font-semibold">
+                    {activeConversation.title}
+                  </div>
                 )}
               </div>
 
@@ -268,7 +317,9 @@ const ChatbotInterface = () => {
                       <div className="w-8 h-8 rounded-full bg-blue-200" />
                       <div className="flex-1">
                         <div className="inline-block max-w-3xl relative">
-                          <p className="text-gray-900 whitespace-pre-line">{msg.response}</p>
+                          <p className="text-gray-900 whitespace-pre-line">
+                            {msg.response}
+                          </p>
                           <button
                             onClick={() => copyToClipboard(msg.response)}
                             className="absolute right-2 top-0 transform -translate-y-1/2 p-1 rounded hover:bg-gray-200 transition"
@@ -328,18 +379,43 @@ const ChatbotInterface = () => {
                   <Plus className="w-5 h-5" />
                 </button>
               </div>
-              {conversations.map((conv) => (
-                <div
-                  key={conv.conversation_id}
-                  onClick={() => getConversation(conv.conversation_id)}
-                  className={`flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer ${
-                    activeConversation?.conversation_id === conv.conversation_id ? 'bg-gray-100' : ''
-                  }`}
-                >
-                  <MessageSquare className="w-5 h-5" />
-                  <span className="truncate">{conv.title}</span>
-                </div>
-              ))}
+              <div className="overflow-y-auto max-h-[calc(100vh-200px)]">
+                {Object.entries(groupConversationsByDate(conversations)).map(
+                  ([group, convs]) =>
+                    convs.length > 0 && (
+                      <div key={group} className="mb-4">
+                        <h3 className="text-xs font-semibold text-gray-500 uppercase mb-2 px-3">
+                          {group === "today"
+                            ? "Today"
+                            : group === "yesterday"
+                            ? "Yesterday"
+                            : group === "previous7Days"
+                            ? "Previous 7 Days"
+                            : group === "previous30Days"
+                            ? "Previous 30 Days"
+                            : "Older"}
+                        </h3>
+                        {convs.map((conv) => (
+                          <div
+                            key={conv.conversation_id}
+                            onClick={() =>
+                              getConversation(conv.conversation_id)
+                            }
+                            className={`flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer ${
+                              activeConversation?.conversation_id ===
+                              conv.conversation_id
+                                ? "bg-gray-100"
+                                : ""
+                            }`}
+                          >
+                            <MessageSquare className="w-5 h-5" />
+                            <span className="truncate">{conv.title}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )
+                )}
+              </div>
             </div>
           </>
         ) : activeView === "audio" ? (
