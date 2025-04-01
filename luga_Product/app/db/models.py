@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 from bson import ObjectId
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta
 from app.db.database import database
 
@@ -114,9 +114,46 @@ class Text(BaseModel):
 class TextCreate(BaseModel):
     prompt: str
     user_email: str
+    level: str
+    conversation_id: Optional[str] = None
+    title: Optional[str] = None
+    warning: Optional[str] = None
+
+class Message(BaseModel):
+    prompt: str
+    response: str
+    timestamp: str
+    conversation_id: str
+
+class ConversationCreate(BaseModel):
+    prompt: str
+    user_email: str
+    conversation_id: Optional[str] = None
+    title: Optional[str] = None
+    level: Optional[str] = None
+
+class ConversationResponse(BaseModel):
+    conversation_id: str
+    title: str
+    messages: List[Message]
+    timestamp: str
+    warning: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+class ConversationSummary(BaseModel):
+    conversation_id: str
+    title: str
+    created_at: str
+    updated_at: str
+
 class TextResponse(BaseModel):
     prompt: str
     response: str
+    conversation_id: Optional[str] = None
+    timestamp: Optional[str] = None
+    title: Optional[str] = None
+    warning: Optional[str] = None
 
 class TokenResponse(BaseModel):
     access_token: str
