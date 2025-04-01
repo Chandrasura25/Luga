@@ -305,7 +305,8 @@ async def clone_voice(
             "voice_id": cloned_voice["voice_id"],
             "name": name,
             "description": description,
-            "is_cloned": True
+            "is_cloned": True,
+            "preview_url": cloned_voice.get("preview_url"),
         }
         
         await database.db.voice.insert_one(voice_record)
@@ -320,7 +321,7 @@ async def clone_voice(
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/cloned-voices", response_model=List[Voice])
-async def get_clone_voice(request: UserEmailRequest):
+async def get_clone_voice(request: UserEmailRequest, service: ElevenLabsService = Depends(get_eleven_labs_service)):
     """
     Get all cloned voices for a user.
     """
@@ -333,6 +334,27 @@ async def get_clone_voice(request: UserEmailRequest):
         cloned_voices_cursor = database.db.voice.find({"user_id": str(user["_id"])})
         cloned_voices = await cloned_voices_cursor.to_list(length=None)
         
-        return cloned_voices
+        formatted_voices = []
+        for voice in cloned_voices:
+            voice_info = service.get_voice_by_id(voice["voice_id"])
+            
+            # Create a formatted voice object with all required information
+            formatted_voice = Voice(
+                id=str(voice.get("_id", ObjectId())),  # Convert ObjectId to string
+                user_id=voice["user_id"],
+                voice_id=voice["voice_id"],
+                name=voice["name"],
+                description=voice["description"],
+                is_cloned=True,
+                preview_url=voice_info.get("preview_url"),
+                labels=voice_info.get("labels", {}),
+                category=voice_info.get("category"),
+                available_for_tiers=voice_info.get("available_for_tiers"),
+                settings=voice_info.get("settings")
+            )
+            formatted_voices.append(formatted_voice)
+        
+        return formatted_voices
     except Exception as e:
+        print(e)
         raise HTTPException(status_code=500, detail=str(e))
