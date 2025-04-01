@@ -45,3 +45,35 @@ class ElevenLabsService:
             raise HTTPException(status_code=response.status_code, detail="Error from Eleven Labs API")
         
         return response.content
+
+    def clone_voice(self, name: str, description: str, audio_file: bytes) -> dict:
+        """
+        Clone a voice using an audio file.
+        """
+        url = f"{self.BASE_URL}/voices/add"
+        headers = {
+            "Accept": "application/json",
+            "xi-api-key": self.api_key
+        }
+        
+        files = {
+            'files': ('recording.mp3', audio_file, 'audio/mpeg'),
+            'name': (None, name),
+            'description': (None, description),
+        }
+        
+        response = requests.post(url, headers=headers, files=files)
+        
+        if response.status_code != 200:
+            raise HTTPException(status_code=response.status_code, detail="Error cloning voice with Eleven Labs API")
+        
+        return response.json()
+    def get_voice_by_id(self, voice_id: str) -> dict:
+        url = f"{self.BASE_URL}/voices/{voice_id}"
+        headers = {
+            "xi-api-key": self.api_key
+        }
+        response = requests.get(url, headers=headers)
+        if response.status_code != 200:
+            raise HTTPException(status_code=response.status_code, detail="Error fetching voice by id from Eleven Labs API")
+        return response.json()
