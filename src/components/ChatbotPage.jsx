@@ -305,7 +305,7 @@ const ChatbotInterface = () => {
                   <button
                     onClick={sendMessage}
                     disabled={isLoading}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-blue-500 text-white px-4 py-2 rounded-lg"
+                    className="absolute right-2 top-0 bg-blue-500 text-white px-4 py-2 rounded-lg"
                   >
                     {isLoading ? (
                       <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
