@@ -165,4 +165,14 @@ class Voice(BaseModel):
     voice_id: str
     name: str
     description: str
+    is_cloned: bool = True
+    preview_url: Optional[str] = None
+    labels: Optional[Dict[str, str]] = None
+    category: Optional[str] = None
+    available_for_tiers: Optional[List[str]] = None
+    settings: Optional[Dict[str, Any]] = None
+    
+    class Config:
+        allow_population_by_field_name = True
+        json_encoders = {ObjectId: str}
 
