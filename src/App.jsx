@@ -12,7 +12,7 @@ import ResetCode from "./components/ResetCode";
 
 import "./App.css";
 import PasswordReset from "./components/PasswordReset";
-
+import VoiceClone from "./components/VoiceClone";
 function App() {
   const [token, setToken] = useState(null);
 
@@ -40,6 +40,7 @@ function App() {
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/cancel" element={<CancelPage />} />
       <Route path="/success" element={<SuccessPage />} />
+      <Route path="/clone-voice" element={<VoiceClone />} />
     </Routes>
   );
 }
