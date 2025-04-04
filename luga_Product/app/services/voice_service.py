@@ -1,6 +1,7 @@
 import requests
 from fastapi import HTTPException
 from app.core.config import Config
+import time
 
 class ElevenLabsService:
     BASE_URL = "https://api.elevenlabs.io/v1"
@@ -49,6 +50,8 @@ class ElevenLabsService:
     def clone_voice(self, name: str, description: str, audio_file: bytes) -> dict:
         """
         Clone a voice using an audio file.
+        Returns a dictionary containing voice details including voice_id and preview_url.
+        Will retry getting preview_url up to 3 times with 2 second delays.
         """
         url = f"{self.BASE_URL}/voices/add"
         headers = {
@@ -67,7 +70,32 @@ class ElevenLabsService:
         if response.status_code != 200:
             raise HTTPException(status_code=response.status_code, detail="Error cloning voice with Eleven Labs API")
         
-        return response.json()
+        response_data = response.json()
+        
+        # Get the newly created voice details including preview_url with retries
+        if 'voice_id' in response_data:
+            max_retries = 3
+            retry_delay = 2  # seconds
+            
+            for attempt in range(max_retries):
+                voice_details = self.get_voice_by_id(response_data['voice_id'])
+                if voice_details.get('preview_url'):
+                    return {
+                        **response_data,
+                        'preview_url': voice_details['preview_url']
+                    }
+                
+                if attempt < max_retries - 1:  # Don't sleep on last attempt
+                    time.sleep(retry_delay)
+            
+            # If we still don't have a preview_url after retries, return what we have
+            return {
+                **response_data,
+                'preview_url': voice_details.get('preview_url')
+            }
+            
+        return response_data
+
     def get_voice_by_id(self, voice_id: str) -> dict:
         url = f"{self.BASE_URL}/voices/{voice_id}"
         headers = {
