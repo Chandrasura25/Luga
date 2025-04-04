@@ -33,17 +33,17 @@ const TextAudio = () => {
   const [audioDurations, setAudioDurations] = useState({});
   const [playbackRate, setPlaybackRate] = useState(1);
   const [playingIndex, setPlayingIndex] = useState(null);
+  const [playingPreview, setPlayingPreview] = useState(null);
   const [editingIndex, setEditingIndex] = useState(null);
   const [uploadLoading, setUploadLoading] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordedChunks, setRecordedChunks] = useState([]);
-  const [recordingDuration, setRecordingDuration] = useState(0);
   const [showCloneDialog, setShowCloneDialog] = useState(false);
   const [voiceName, setVoiceName] = useState("");
   const [voiceDescription, setVoiceDescription] = useState("");
   const [cloneVoices, setCloneVoices] = useState([]);
-  const mediaRecorderRef = useRef(null);
-  const recordingTimerRef = useRef(null);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [fileError, setFileError] = useState("");
+  const previewAudioRef = useRef(null);
+  const audioRefs = useRef([]);
 
   const fetchVoices = async () => {
     try {
@@ -58,6 +58,7 @@ const TextAudio = () => {
       setLoading(false);
     }
   };
+
   const fetchCloneVoices = async () => {
     try {
       const response = await axiosPrivate.post("/voice/cloned-voices", {
@@ -82,13 +83,12 @@ const TextAudio = () => {
       setFetchLoading(false);
     }
   };
+
   useEffect(() => {
     fetchVoices();
     fetchUserVoices();
     fetchCloneVoices();
   }, []);
-
-  const audioRefs = useRef([]);
 
   const handlePlayPause = (index) => {
     audioRefs.current.forEach((audio, i) => {
@@ -195,11 +195,6 @@ const TextAudio = () => {
     setSelectedVoice(voice);
   };
 
-  const handleSelectAndPlayVoice = (voice, index) => {
-    handleSelectVoice(voice);
-    handlePlayPause(index);
-  };
-
   const handleNameChange = (index, newName) => {
     setAudioNames((prev) => ({ ...prev, [index]: newName }));
   };
@@ -275,64 +270,45 @@ const TextAudio = () => {
     }
   };
   
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      const chunks = [];
+  const handleFileSelect = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      // Check if it's an audio file
+      if (!file.type.startsWith('audio/')) {
+        setFileError("Please upload an audio file");
+        setSelectedFile(null);
+        return;
+      }
 
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          chunks.push(e.data);
-        }
-      };
-
-      mediaRecorder.onstop = () => {
-        new Blob(chunks, { type: "audio/mp3" });
-        setRecordedChunks(chunks);
-      };
-
-      mediaRecorder.start();
-      setIsRecording(true);
+      // Get duration of audio file
+      const audio = new Audio();
+      audio.src = URL.createObjectURL(file);
       
-      // Start recording duration timer
-      let duration = 0;
-      recordingTimerRef.current = setInterval(() => {
-        duration += 1;
-        setRecordingDuration(duration);
-        
-        // Stop recording after 5 minutes
-        if (duration >= 300) {
-          stopRecording();
+      audio.addEventListener('loadedmetadata', () => {
+        const duration = audio.duration;
+        // Check if duration is between 1 and 5 minutes
+        if (duration < 60 || duration > 300) {
+          setFileError("Audio file must be between 1 and 5 minutes long");
+          setSelectedFile(null);
+          return;
         }
-      }, 1000);
-    } catch (err) {
-      console.error("Error accessing microphone:", err);
-      toast({
-        variant: "destructive",
-        title: "Error accessing microphone",
-        description: "Please ensure you have granted microphone permissions.",
+        setFileError("");
+        setSelectedFile(file);
+      });
+
+      audio.addEventListener('error', () => {
+        setFileError("Error loading audio file");
+        setSelectedFile(null);
       });
     }
   };
 
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
-      setIsRecording(false);
-      clearInterval(recordingTimerRef.current);
-      setShowCloneDialog(true);
-    }
-  };
-
   const handleCloneVoice = async () => {
-    if (recordedChunks.length === 0) {
+    if (!selectedFile) {
       toast({
         variant: "destructive",
-        title: "No recording found",
-        description: "Please record your voice first.",
+        title: "No file selected",
+        description: "Please upload an audio file.",
       });
       return;
     }
@@ -347,33 +323,37 @@ const TextAudio = () => {
     }
 
     try {
-      const audioBlob = new Blob(recordedChunks, { type: "audio/mp3" });
       const formData = new FormData();
-      formData.append("file", audioBlob, "recording.mp3");
+      formData.append("file", selectedFile);
       formData.append("user_email", getUserEmail());
-      formData.append("name", voiceName);
-      formData.append("description", voiceDescription || `Cloned voice: ${voiceName}`);
+      formData.append("name", voiceName.trim());
+      formData.append("description", voiceDescription.trim() || `Cloned voice: ${voiceName.trim()}`);
 
-      await axiosPrivate.post("/voice/clone-voice", formData, {
+      const response = await axiosPrivate.post("/voice/clone-voice", formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },
       });
 
-      toast({
-        description: "Voice cloned successfully!",
-      });
+      if (response.data.status === "success") {
+        toast({
+          description: "Voice cloned successfully!",
+        });
 
-      // Reset state
-      setRecordedChunks([]);
-      setVoiceName("");
-      setVoiceDescription("");
-      setShowCloneDialog(false);
-      setRecordingDuration(0);
+        // Reset state
+        setSelectedFile(null);
+        setVoiceName("");
+        setVoiceDescription("");
+        setShowCloneDialog(false);
+        setFileError("");
 
-      // Refresh voices
-      fetchCloneVoices();
+        // Refresh voices
+        fetchCloneVoices();
+      } else {
+        throw new Error(response.data.message || "Failed to clone voice");
+      }
     } catch (error) {
+      console.error("Error cloning voice:", error);
       toast({
         variant: "destructive",
         title: "Error cloning voice",
@@ -381,7 +361,25 @@ const TextAudio = () => {
       });
     }
   };
-  console.log(cloneVoices);
+
+  const handlePlayPreview = (voice) => {
+    if (playingPreview === voice.voice_id) {
+      previewAudioRef.current?.pause();
+      setPlayingPreview(null);
+    } else {
+      if (previewAudioRef.current) {
+        previewAudioRef.current.pause();
+      }
+      previewAudioRef.current = new Audio(voice.preview_url);
+      previewAudioRef.current.playbackRate = playbackRate;
+      previewAudioRef.current.play();
+      setPlayingPreview(voice.voice_id);
+      
+      previewAudioRef.current.onended = () => {
+        setPlayingPreview(null);
+      };
+    }
+  };
 
   return (
     <>
@@ -404,9 +402,8 @@ const TextAudio = () => {
             <div className="flex space-x-4">
               <Select
                 onValueChange={(value) => {
-                  const voice = voices.find((v) => v.voice_id === value);
-                  const index = voices.indexOf(voice);
-                  handleSelectAndPlayVoice(voice, index);
+                  const voice = [...voices, ...cloneVoices].find((v) => v.voice_id === value);
+                  handleSelectVoice(voice);
                 }}
                 defaultValue={selectedVoice?.voice_id}
               >
@@ -419,19 +416,78 @@ const TextAudio = () => {
                     {loading ? (
                       <SelectItem value="loading">Loading...</SelectItem>
                     ) : (
-                      voices.map((voice) => (
-                        <SelectItem
-                          key={voice.voice_id}
-                          value={voice.voice_id}
-                        >
-                          <p className="uppercase">{voice.name}</p>
-                          <span>
-                            {voice.labels.accent && `${voice.labels.accent}`}
-                            {voice.labels.age && `, ${voice.labels.age}`}
-                            {voice.labels.gender && `, ${voice.labels.gender}`}
-                          </span>
-                        </SelectItem>
-                      ))
+                      <>
+                        <SelectLabel>Pre-made Voices</SelectLabel>
+                        {voices.map((voice) => (
+                          <SelectItem
+                            key={voice.voice_id}
+                            value={voice.voice_id}
+                          >
+                            <div className="flex items-center justify-between w-full">
+                              <div>
+                                <p className="uppercase">{voice.name}</p>
+                                <span className="text-xs text-gray-500">
+                                  {voice.labels.accent && `${voice.labels.accent}`}
+                                  {voice.labels.age && `, ${voice.labels.age}`}
+                                  {voice.labels.gender && `, ${voice.labels.gender}`}
+                                </span>
+                              </div>
+                              {voice.preview_url && (
+                                <button
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handlePlayPreview(voice);
+                                  }}
+                                  className="ml-2 p-1 hover:bg-gray-100 rounded-full"
+                                >
+                                  {playingPreview === voice.voice_id ? (
+                                    <Pause className="w-4 h-4" />
+                                  ) : (
+                                    <Play className="w-4 h-4" />
+                                  )}
+                                </button>
+                              )}
+                            </div>
+                          </SelectItem>
+                        ))}
+                        {cloneVoices.length > 0 && (
+                          <>
+                            <SelectLabel>Your Cloned Voices</SelectLabel>
+                            {cloneVoices.map((voice) => (
+                              <SelectItem
+                                key={voice.voice_id}
+                                value={voice.voice_id}
+                              >
+                                <div className="flex items-center justify-between w-full">
+                                  <div>
+                                    <p className="uppercase">{voice.name}</p>
+                                    <span className="text-xs text-gray-500">
+                                      Cloned Voice
+                                    </span>
+                                  </div>
+                                  {voice.preview_url && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        handlePlayPreview(voice);
+                                      }}
+                                      className="ml-2 p-1 hover:bg-gray-100 rounded-full"
+                                    >
+                                      {playingPreview === voice.voice_id ? (
+                                        <Pause className="w-4 h-4" />
+                                      ) : (
+                                        <Play className="w-4 h-4" />
+                                      )}
+                                    </button>
+                                  )}
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </>
+                        )}
+                      </>
                     )}
                   </SelectGroup>
                 </SelectContent>
@@ -461,19 +517,14 @@ const TextAudio = () => {
                 <Tooltip>
                   <TooltipTrigger>
                     <button 
-                      className={`rounded-full p-2 ${isRecording ? 'bg-red-500' : 'bg-black'} text-white hover:opacity-90 flex items-center justify-center`}
-                      onClick={isRecording ? stopRecording : startRecording}
+                      className="rounded-full p-2 bg-black text-white hover:opacity-90 flex items-center justify-center"
+                      onClick={() => setShowCloneDialog(true)}
                     >
                       <Mic className="w-5 h-5" />
                     </button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p className="capitalize">{isRecording ? 'Stop Recording' : 'Clone your voice'}</p>
-                    {isRecording && (
-                      <p className="text-xs text-gray-500">
-                        Recording: {Math.floor(recordingDuration / 60)}:{(recordingDuration % 60).toString().padStart(2, '0')}
-                      </p>
-                    )}
+                    <p>Clone your voice</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -641,18 +692,36 @@ const TextAudio = () => {
                 rows={3}
               />
             </div>
-            <div className="text-sm text-gray-500">
-              Recording duration: {Math.floor(recordingDuration / 60)}:{(recordingDuration % 60).toString().padStart(2, '0')}
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Upload Audio File</label>
+              <p className="text-xs text-gray-500 mb-2">Please upload a well-recorded audio file that is between 1 and 5 minutes long.</p>
+              <input
+                type="file"
+                accept="audio/*"
+                onChange={handleFileSelect}
+                className="mt-1 block w-full text-sm text-gray-500
+                  file:mr-4 file:py-2 file:px-4
+                  file:rounded-full file:border-0
+                  file:text-sm file:font-semibold
+                  file:bg-black file:text-white
+                  hover:file:bg-gray-800"
+              />
+              {fileError && (
+                <p className="mt-1 text-sm text-red-600">{fileError}</p>
+              )}
+              {selectedFile && !fileError && (
+                <p className="mt-1 text-sm text-green-600">Selected file: {selectedFile.name}</p>
+              )}
             </div>
             <div className="flex space-x-4">
               <button
                 className="flex-1 bg-gray-200 text-gray-800 rounded-md py-2 hover:bg-gray-300"
                 onClick={() => {
                   setShowCloneDialog(false);
-                  setRecordedChunks([]);
+                  setSelectedFile(null);
                   setVoiceName("");
                   setVoiceDescription("");
-                  setRecordingDuration(0);
+                  setFileError("");
                 }}
               >
                 Cancel
@@ -660,6 +729,7 @@ const TextAudio = () => {
               <button
                 className="flex-1 bg-black text-white rounded-md py-2 hover:bg-gray-800"
                 onClick={handleCloneVoice}
+                disabled={!selectedFile || !!fileError}
               >
                 Clone Voice
               </button>
