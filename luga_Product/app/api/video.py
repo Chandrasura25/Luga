@@ -12,6 +12,8 @@ from pymongo import DESCENDING
 from typing import List
 import tempfile
 import os
+import httpx
+import io
 router = APIRouter()
 
 
@@ -19,7 +21,6 @@ from app.core.config import Config
 video_service = SyncLabsVideoService(api_key=Config.SYNCLABS_API_KEY)
 
 from PIL import Image, ImageDraw
-import io
 @router.get("/api/placeholder/{width}/{height}")
 async def get_placeholder_image(width: int, height: int):
     image = Image.new('RGB', (width, height), color='#E5E7EB')
@@ -196,99 +197,6 @@ async def upload_video(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/sync-audio/", response_model=VideoProcessedResponse)
-async def sync_audio(request: SyncAudioRequest):
-    video_record = await database.db.videos.find_one({
-        "user_id": request.user_id, 
-        "video_id": request.video_id
-    })
-    
-    if not video_record:
-        raise HTTPException(status_code=404, detail="No video found for this user and video ID")
-
-    audio_record = await database.db.audios.find_one({
-        "user_id": request.user_id,
-        "audio_id": request.audio_id
-    })
-
-    if not audio_record:
-        raise HTTPException(status_code=404, detail="No audio found for this user and audio ID")
-
-    try:
-        video_url = None
-        if Config.S3_PROVIDER == "BAIDU":
-            video_url = get_baidu_bos_video_url(video_record['key'])
-        else:
-            video_url = get_cloudinary_video_url(
-                video_record['public_id'], 
-                video_record['resource_type'], 
-                video_record['format']
-            )
-        if not video_url:
-            raise HTTPException(status_code=500, detail="Failed to get video URL")
-        
-        audio_url = None
-        if Config.S3_PROVIDER == "BAIDU":
-            audio_url = get_baidu_bos_audio_url(audio_record['key'])
-        else:
-            audio_url = get_cloudinary_audio_url(
-                audio_record['public_id'],
-                audio_record['resource_type'],
-                audio_record['format']
-            )
-        if not audio_url:
-            raise HTTPException(status_code=500, detail="Failed to get audio URL")
-
-        sync_result = video_service.sync_audio_with_video(
-            audio_url=audio_url,
-            video_url=video_url,
-            model=request.model,
-            webhook_url=request.webhook_url
-        )
-
-        sync_record = {
-            "user_id": request.user_id,
-            "video_id": request.video_id,
-            "audio_id": request.audio_id,
-            "job_id": sync_result.get("id"),
-            "status": sync_result.get("status", "processing"),
-            "sync_result": sync_result,
-            "audio_url": audio_url,
-            "video_url": video_url,
-            "created_at": datetime.utcnow(),
-            "updated_at": datetime.utcnow()
-        }
-        
-        await database.db.audio_to_video.insert_one(sync_record)
-
-        return VideoProcessedResponse(
-            user_id=request.user_id,
-            video_id=request.video_id,
-            sync_result=sync_result,
-            message="Audio sync job submitted successfully"
-        )
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.post("/get-video", response_model=List[VideoUploadResponse])
-async def get_video(user_email: str = Body(..., embed=True)): 
-    user = await database.find_user_by_email(user_email)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    video = await database.db.videos.find({"user_id": str(user["_id"])}).sort("created_at", DESCENDING).to_list(100)
-    if not video:
-        raise HTTPException(status_code=404, detail="Video not found")
-    return [
-        VideoUploadResponse(
-            user_id=str(user["_id"]),
-            video_id=item["video_id"],
-            video_url=item.get("video_url", ""),
-            file_name=item.get("file_name", ""),
-            message="Video fetched successfully"
-        ) for item in video
-    ]
-
 @router.post("/sync-audio", response_model=VideoProcessedResponse)
 async def sync_audio(request: SyncAudioRequest):
     user = await database.find_user_by_email(request.user_email)
@@ -315,10 +223,18 @@ async def sync_audio(request: SyncAudioRequest):
     if not video_record:
         raise HTTPException(status_code=404, detail="No video found for this user and video ID")
 
+    # Try to find audio in both uploaded audios and generated audios
     audio_record = await database.db.audios.find_one({
         "user_id": str(user["_id"]),
         "audio_id": request.audio_id
     })
+
+    if not audio_record:
+        # If not found in uploaded audios, check generated audios
+        audio_record = await database.db.audio.find_one({
+            "user_id": str(user["_id"]),
+            "_id": ObjectId(request.audio_id)
+        })
 
     if not audio_record:
         raise HTTPException(status_code=404, detail="No audio found for this user and audio ID")
@@ -334,11 +250,18 @@ async def sync_audio(request: SyncAudioRequest):
         if not video_url:
             raise HTTPException(status_code=500, detail="Failed to get video URL")
 
-        audio_url = get_baidu_bos_audio_url(audio_record['key']) if Config.S3_PROVIDER == "BAIDU" else get_cloudinary_audio_url(
-            audio_record['public_id'],
-            audio_record['resource_type'],
-            audio_record['format']
-        )
+        # Get audio URL based on where it was found
+        audio_url = None
+        if "audio_url" in audio_record:
+            # For generated audios
+            audio_url = audio_record["audio_url"]
+        else:
+            # For uploaded audios
+            audio_url = get_baidu_bos_audio_url(audio_record['key']) if Config.S3_PROVIDER == "BAIDU" else get_cloudinary_audio_url(
+                audio_record['public_id'],
+                audio_record['resource_type'],
+                audio_record['format']
+            )
 
         if not audio_url:
             raise HTTPException(status_code=500, detail="Failed to get audio URL")
@@ -376,6 +299,25 @@ async def sync_audio(request: SyncAudioRequest):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/get-video", response_model=List[VideoUploadResponse])
+async def get_video(user_email: str = Body(..., embed=True)): 
+    user = await database.find_user_by_email(user_email)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    video = await database.db.videos.find({"user_id": str(user["_id"])}).sort("created_at", DESCENDING).to_list(100)
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+    return [
+        VideoUploadResponse(
+            user_id=str(user["_id"]),
+            video_id=item["video_id"],
+            video_url=item.get("video_url", ""),
+            file_name=item.get("file_name", ""),
+            message="Video fetched successfully"
+        ) for item in video
+    ]
+
 @router.get("/job/{user_id}/{video_id}", response_model=JobStatusResponse)
 async def get_job_status(user_id: str, video_id: str):
     try:
@@ -403,17 +345,51 @@ async def get_job_status(user_id: str, video_id: str):
             "job_result": job_status,
             "updated_at": datetime.utcnow()
         }
+        
         if job_status.get("status") == "COMPLETED":
             result_url = job_status.get("output", {}).get("url") or job_status.get("result", {}).get("url")
             if result_url:
-                update_data["result_video_url"] = result_url
+                # Check if we already have a Cloudinary URL
+                if not sync_record.get("cloudinary_url"):
+                    try:
+                        # Download the video
+                        async with httpx.AsyncClient() as client:
+                            response = await client.get(result_url)
+                            if response.status_code == 200:
+                                # Create a FastAPI UploadFile object
+                                file_content = response.content
+                                file = UploadFile(
+                                    filename=f"{video_id}.mp4",
+                                    file=io.BytesIO(file_content)
+                                )
+                                
+                                # Upload to Cloudinary
+                                cloudinary_result = await upload_file_to_cloudinary(
+                                    file=file,
+                                    folder="videos"
+                                )
+                                
+                                # Update the record with Cloudinary information
+                                update_data.update({
+                                    "cloudinary_url": cloudinary_result.get("public_id"),
+                                    "original_url": result_url,
+                                    "result_video_url": result_url
+                                })
+                            else:
+                                print(f"Failed to download video: {response.status_code}")
+                                update_data["result_video_url"] = result_url
+                    except Exception as e:
+                        print(f"Error uploading to Cloudinary: {str(e)}")
+                        update_data["result_video_url"] = result_url
+                else:
+                    update_data["result_video_url"] = sync_record["cloudinary_url"]
 
         # Ensure the database is updated with the latest job status
         update_result = await database.db.audio_to_video.find_one_and_update(
             {"user_id": user_id, "video_id": video_id},
             {"$set": update_data}
         )
-        print(update_result)
+        
         if not update_result:
             raise HTTPException(
                 status_code=500,
@@ -424,43 +400,43 @@ async def get_job_status(user_id: str, video_id: str):
             "user_id": user_id,
             "video_id": video_id,
             "status": job_status.get("status"),
-            "result_video_url": update_data.get("result_video_url"),
+            "result_video_url": update_data.get("cloudinary_url") or update_data.get("result_video_url"),
             "job_result": job_status,
             "created_at": sync_record.get("created_at"),
             "updated_at": datetime.utcnow()
         }
         return JobStatusResponse(**response_data)
     except Exception as e:
-      error_message = "An error occurred while processing your request."
-      error_str = str(e).lower()
-      if isinstance(e, HTTPException):
-          print(e)
-          raise HTTPException(status_code=e.status_code, detail=str(e.detail))
+        error_message = "An error occurred while processing your request."
+        error_str = str(e).lower()
+        if isinstance(e, HTTPException):
+            print(e)
+            raise HTTPException(status_code=e.status_code, detail=str(e.detail))
         
-      if "invalid api key" in error_str:
-          error_message = "The API key provided is invalid. Please check your credentials."
-          status_code = 401
-      elif "key expired" in error_str:
-          error_message = "The API key has expired. Please renew your key."
-          status_code = 401
-      elif "500: 400: 500 server error" in error_str and "sync.so" in error_str:
-        print("The key is already invalid.")
-        error_message = "The key is already invalid."
-        status_code = 400  # Set to 400 if you want it treated as a bad request    
-      elif "500 server error" in error_str or "internal server error" in error_str:
-          error_message = "The server encountered an internal error. Please try again later."
-          status_code = 500
-      elif "400" in error_str:
-          error_message = "Bad request. Please check your input."
-          status_code = 400
-      else:
-          status_code = 500  # Default to 500 if the error is unrecognized
+        if "invalid api key" in error_str:
+            error_message = "The API key provided is invalid. Please check your credentials."
+            status_code = 401
+        elif "key expired" in error_str:
+            error_message = "The API key has expired. Please renew your key."
+            status_code = 401
+        elif "500: 400: 500 server error" in error_str and "sync.so" in error_str:
+            print("The key is already invalid.")
+            error_message = "The key is already invalid."
+            status_code = 400  # Set to 400 if you want it treated as a bad request    
+        elif "500 server error" in error_str or "internal server error" in error_str:
+            error_message = "The server encountered an internal error. Please try again later."
+            status_code = 500
+        elif "400" in error_str:
+            error_message = "Bad request. Please check your input."
+            status_code = 400
+        else:
+            status_code = 500  # Default to 500 if the error is unrecognized
     
-      print(e)
-      raise HTTPException(
-          status_code=status_code,
-          detail=error_message
-      )
+        print(e)
+        raise HTTPException(
+            status_code=status_code,
+            detail=error_message
+        )
         
 
 @router.get("/jobs/{user_email}", response_model=list[JobStatusResponse])
