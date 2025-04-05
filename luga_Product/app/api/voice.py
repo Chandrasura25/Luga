@@ -357,3 +357,37 @@ async def get_clone_voice(request: UserEmailRequest, service: ElevenLabsService 
     except Exception as e:
         print(e)
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/generated-audios", response_model=List[Audio])
+async def get_generated_audios(request: UserEmailRequest):
+    """
+    Get all generated audios from text-to-speech for a user.
+    """
+    try:
+        user = await database.find_user_by_email(request.email)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Get all audio records from the text-to-speech feature
+        audio_cursor = database.db.audio.find({
+            "user_id": str(user["_id"]),
+        }).sort("created_at", -1)  # Sort by creation date, newest first
+        
+        audios = await audio_cursor.to_list(length=None)
+        
+        # Format the response
+        formatted_audios = []
+        for audio in audios:
+            formatted_audio = Audio(
+                id=str(audio.get("_id", ObjectId())),
+                user_id=audio["user_id"],
+                voice_id=audio.get("voice_id"),
+                audio_url=audio.get("audio_url"),
+                file_name=audio.get("file_name", "Untitled Audio")
+            )
+            formatted_audios.append(formatted_audio)
+        
+        return formatted_audios
+    except Exception as e:
+        print(f"Error fetching generated audios: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
