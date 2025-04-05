@@ -26,6 +26,9 @@ const TextToVideo = () => {
   const [jobHistory, setJobHistory] = useState([]);
   const [userVoices, setUserVoices] = useState([]);
   const [fetchLoading, setFetchLoading] = useState(false);
+  const [generatedAudios, setGeneratedAudios] = useState([]);
+  const [generatedAudioLoading, setGeneratedAudioLoading] = useState(false);
+
   const fetchUserVoices = useCallback(async () => {
     try {
       setFetchLoading(true);
@@ -35,10 +38,35 @@ const TextToVideo = () => {
       setUserVoices(response.data);
     } catch (error) {
       console.error("Error fetching user voices:", error);
+      toast({
+        variant: "destructive",
+        title: "Error fetching user voices",
+        description: "Failed to fetch user voices. Please try again.",
+      });
     } finally {
       setFetchLoading(false);
     }
   }, [getUserEmail]);
+
+  const fetchGeneratedAudios = useCallback(async () => {
+    try {
+      setGeneratedAudioLoading(true);
+      const response = await axiosPrivate.post("/voice/generated-audios", {
+        email: getUserEmail(),
+      });
+      setGeneratedAudios(response.data);
+    } catch (error) {
+      console.error("Error fetching generated audios:", error);
+      toast({
+        variant: "destructive",
+        title: "Error fetching generated audios",
+        description: "Failed to fetch generated audios. Please try again.",
+      });
+    } finally {
+      setGeneratedAudioLoading(false);
+    }
+  }, [getUserEmail]);
+
   const getAudioHistory = async () => {
     try {
       const response = await axiosPrivate.post("/video/get-audio", {
@@ -76,7 +104,8 @@ const TextToVideo = () => {
     getVideoHistory();
     getJobHistory();
     fetchUserVoices();
-  }, []);
+    fetchGeneratedAudios();
+  }, [fetchUserVoices, fetchGeneratedAudios]);
 
   const handleFileUpload = async (event) => {
     setUploadLoading(true);
@@ -295,6 +324,20 @@ const TextToVideo = () => {
                   </SelectTrigger>
                   <SelectContent className="max-w-[300px] overflow-y-auto">
                     <SelectGroup>
+                      <SelectLabel>Generated Audios</SelectLabel>
+                      {generatedAudioLoading ? (
+                        <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-black"></div>
+                      ) : (
+                        generatedAudios.map((audio) => (
+                          <SelectItem
+                            value={audio.id}
+                            key={audio.id}
+                            className="whitespace-wrap"
+                          >
+                            {audio.file_name}
+                          </SelectItem>
+                        ))
+                      )}
                       <SelectLabel>Audio History</SelectLabel>
                       {audioHistory
                         .filter((audio) => audio.audio_id)
