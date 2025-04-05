@@ -659,7 +659,7 @@ const TextAudio = () => {
       {/* Voice Cloning Dialog */}
       {showCloneDialog && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="bg-white rounded-lg p-6 w-96">
+          <div className="bg-white rounded-lg p-6 w-1/3">
             <h2 className="text-xl font-bold mb-4">Clone Your Voice</h2>
             <div className="space-y-4">
               <div>
