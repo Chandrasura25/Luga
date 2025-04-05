@@ -347,7 +347,7 @@ async def get_job_status(user_id: str, video_id: str):
         }
         
         if job_status.get("status") == "COMPLETED":
-            result_url = job_status.get("output", {}).get("url") or job_status.get("result", {}).get("url")
+            result_url = job_status.get("outputUrl") or job_status.get("result", {}).get("url")
             if result_url:
                 # Check if we already have a Cloudinary URL
                 if not sync_record.get("cloudinary_url"):
@@ -368,6 +368,7 @@ async def get_job_status(user_id: str, video_id: str):
                                     file=file,
                                     folder="videos"
                                 )
+                                print(cloudinary_result, "cloudinary_result")
                                 
                                 # Update the record with Cloudinary information
                                 update_data.update({
@@ -389,7 +390,6 @@ async def get_job_status(user_id: str, video_id: str):
             {"user_id": user_id, "video_id": video_id},
             {"$set": update_data}
         )
-        
         if not update_result:
             raise HTTPException(
                 status_code=500,

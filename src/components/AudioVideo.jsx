@@ -22,31 +22,10 @@ const TextToVideo = () => {
   const [selectedVideo, setSelectedVideo] = useState(null);
   const [lipSyncLoading, setLipSyncLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
-  const [infoLoading, setInfoLoading] = useState(false);
+  const [loadingJobs, setLoadingJobs] = useState({});
   const [jobHistory, setJobHistory] = useState([]);
-  const [userVoices, setUserVoices] = useState([]);
-  const [fetchLoading, setFetchLoading] = useState(false);
   const [generatedAudios, setGeneratedAudios] = useState([]);
   const [generatedAudioLoading, setGeneratedAudioLoading] = useState(false);
-
-  const fetchUserVoices = useCallback(async () => {
-    try {
-      setFetchLoading(true);
-      const response = await axiosPrivate.post("/voice/user-voices", {
-        email: getUserEmail(),
-      });
-      setUserVoices(response.data);
-    } catch (error) {
-      console.error("Error fetching user voices:", error);
-      toast({
-        variant: "destructive",
-        title: "Error fetching user voices",
-        description: "Failed to fetch user voices. Please try again.",
-      });
-    } finally {
-      setFetchLoading(false);
-    }
-  }, [getUserEmail]);
 
   const fetchGeneratedAudios = useCallback(async () => {
     try {
@@ -103,9 +82,8 @@ const TextToVideo = () => {
     getAudioHistory();
     getVideoHistory();
     getJobHistory();
-    fetchUserVoices();
     fetchGeneratedAudios();
-  }, [fetchUserVoices, fetchGeneratedAudios]);
+  }, [fetchGeneratedAudios]);
 
   const handleFileUpload = async (event) => {
     setUploadLoading(true);
@@ -237,7 +215,8 @@ const TextToVideo = () => {
   };
   const getJobInfo = async (user_id, video_id) => {
     try {
-      setInfoLoading(true);
+      setLoadingJobs(prev => ({ ...prev, [video_id]: true }));
+      
       const response = await axiosPrivate.get(
         `/video/job/${user_id}/${video_id}`
       );
@@ -248,7 +227,7 @@ const TextToVideo = () => {
         await getJobHistory();
       }
     } catch (error) {
-      if (error.response.data.detail.includes("https://api.sync.so")) {
+      if (error.response?.data?.detail?.includes("https://api.sync.so")) {
         toast({
           variant: "destructive",
           title: "Connection Error",
@@ -257,13 +236,13 @@ const TextToVideo = () => {
       } else {
         toast({
           variant: "destructive",
-          title: error.response.data.detail
-            ? error.response.data.detail
+          title: error.response?.data?.detail
+            ? error.response?.data?.detail
             : "Error getting job info.",
         });
       }
     } finally {
-      setInfoLoading(false);
+      setLoadingJobs(prev => ({ ...prev, [video_id]: false }));
     }
   };
   // Separate completed and pending jobs
@@ -283,9 +262,9 @@ const TextToVideo = () => {
                 </div>
               ) : (
                 <div className="flex flex-wrap gap-4">
-                  {pendingJobs.map((job, index) => (
+                  {pendingJobs.map((job) => (
                     <div
-                      key={index}
+                      key={job.video_id}
                       className="border rounded-lg p-4 mb-4 shadow-sm w-fit"
                     >
                       <p>
@@ -295,11 +274,11 @@ const TextToVideo = () => {
                         <strong>Created At:</strong> {job.created_at}
                       </p>
                       <button
-                        className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                        className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
                         onClick={() => getJobInfo(job.user_id, job.video_id)}
-                        disabled={infoLoading}
+                        disabled={loadingJobs[job.video_id]}
                       >
-                        {infoLoading ? (
+                        {loadingJobs[job.video_id] ? (
                           <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
                         ) : (
                           "Get Info"
@@ -350,22 +329,6 @@ const TextToVideo = () => {
                             {audio.file_name}
                           </SelectItem>
                         ))}
-                      <SelectLabel>User Voices</SelectLabel>
-                      {fetchLoading ? (
-                        <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-black"></div>
-                      ) : (
-                        userVoices
-                          .filter((voice) => voice.id)
-                          .map((voice) => (
-                            <SelectItem
-                              value={voice.id}
-                              key={voice.id}
-                              className="whitespace-wrap"
-                            >
-                              {voice.file_name}
-                            </SelectItem>
-                          ))
-                      )}
                     </SelectGroup>
                   </SelectContent>
                 </Select>
