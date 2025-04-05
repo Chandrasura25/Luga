@@ -17,10 +17,23 @@ class User(BaseModel):
     email: str
     password: str
     username: Optional[str] = None
+    profile_image: Optional[str] = None
+    two_factor_enabled: bool = False
+    two_factor_secret: Optional[str] = None
+    invitation_code: Optional[str] = None
     used_audio_time: float = 0.0  
     used_video_time: float = 0.0  
     used_process_videos: int = 0  # Active processing videos count
     used_text_characters: int = 0  # Track text generation characters
+    verified: bool = False
+    verification_token: Optional[str] = None
+    password_reset_code: Optional[str] = None
+    subscription_status: str = "inactive"
+    subscription_plan: str = "Demo"
+    subscription_expiry: Optional[datetime] = None
+    quota: Optional[Dict[str, Any]] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 class UserEmailRequest(BaseModel):
     email: str
