@@ -44,12 +44,12 @@ async def upload_file_to_cloudinary(file: UploadFile, folder: str) -> dict:
             resource_type="video",
             public_id=public_id  
         )
-
         return {
             "public_id": upload_result['public_id'].strip(),
             "format": upload_result['format'],
             "resource_type": upload_result['resource_type'],
-            "provider": "cloudinary"
+            "provider": "cloudinary",
+            "video_url": upload_result['secure_url']
         }
 
     except cloudinary.exceptions.Error as e:

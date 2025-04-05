@@ -13,7 +13,10 @@ from typing import List
 import tempfile
 import os
 import httpx
+import aiohttp
 import io
+from tempfile import SpooledTemporaryFile
+
 router = APIRouter()
 
 
@@ -353,32 +356,14 @@ async def get_job_status(user_id: str, video_id: str):
                 if not sync_record.get("cloudinary_url"):
                     try:
                         # Download the video
-                        async with httpx.AsyncClient() as client:
-                            response = await client.get(result_url)
-                            if response.status_code == 200:
-                                # Create a FastAPI UploadFile object
-                                file_content = response.content
-                                file = UploadFile(
-                                    filename=f"{video_id}.mp4",
-                                    file=io.BytesIO(file_content)
-                                )
-                                
-                                # Upload to Cloudinary
-                                cloudinary_result = await upload_file_to_cloudinary(
-                                    file=file,
-                                    folder="videos"
-                                )
-                                print(cloudinary_result, "cloudinary_result")
-                                
-                                # Update the record with Cloudinary information
-                                update_data.update({
-                                    "cloudinary_url": cloudinary_result.get("public_id"),
-                                    "original_url": result_url,
-                                    "result_video_url": result_url
-                                })
-                            else:
-                                print(f"Failed to download video: {response.status_code}")
-                                update_data["result_video_url"] = result_url
+                        cloudinary_result = await download_and_upload_video(result_url)
+                        
+                        # Update the record with Cloudinary information
+                        update_data.update({
+                            "cloudinary_url": cloudinary_result.get("public_id"),
+                            "original_url": result_url,
+                            "result_video_url": cloudinary_result.get("video_url")
+                        })
                     except Exception as e:
                         print(f"Error uploading to Cloudinary: {str(e)}")
                         update_data["result_video_url"] = result_url
@@ -496,3 +481,43 @@ async def delete_job(user_id: str, video_id: str):
             status_code=500,
             detail=f"An error occurred while deleting the job: {str(e)}"
         )
+
+async def download_and_upload_video(video_url: str):
+    try:
+        # Download video content
+        async with aiohttp.ClientSession() as session:
+            async with session.get(video_url) as response:
+                if response.status != 200:
+                    raise Exception(f"Failed to download video. Status code: {response.status}")
+                
+                # Get the video content
+                video_content = await response.read()
+                
+                # Create a SpooledTemporaryFile
+                temp_file = SpooledTemporaryFile()
+                temp_file.write(video_content)
+                temp_file.seek(0)  # Reset file pointer to beginning
+                
+                # Create a FastAPI UploadFile object
+                file = UploadFile(
+                    filename="synced_video.mp4",
+                    file=temp_file
+                )
+                
+                try:
+                    # Upload to Cloudinary
+                    cloudinary_result = await upload_file_to_cloudinary(
+                        file=file,
+                        folder="videos"
+                    )
+                    
+                    return cloudinary_result
+                finally:
+                    # Clean up
+                    await file.close()
+                    temp_file.close()
+                
+    except Exception as e:
+        print(f"Error in download_and_upload_video: {str(e)}")
+        raise e
+    

@@ -413,7 +413,7 @@ const TextToVideo = () => {
             <div key={job.video_id}>
               <div className="bg-white rounded-2xl p-4 shadow-sm">
                 <div className="relative w-80 bg-gray-100 rounded-xl overflow-hidden">
-                  <video src={job?.job_result?.outputUrl} controls></video>
+                  <video src={job?.result_video_url} controls></video>
                 </div>
               </div>
             </div>
