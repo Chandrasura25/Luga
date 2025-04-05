@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { QRCodeSVG } from "qrcode.react";
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter } from "../components/ui/alert-dialog";
 
 const Profile = () => {
   const { toast } = useToast();
@@ -191,14 +192,14 @@ const Profile = () => {
         </div>
 
         {/* Delete Account Dialog */}
-        <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Delete Account</DialogTitle>
-              <DialogDescription className="text-red-500">
+        <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Account</AlertDialogTitle>
+              <AlertDialogDescription className="text-red-500">
                 Warning: This action cannot be undone. All your data will be permanently deleted.
-              </DialogDescription>
-            </DialogHeader>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
             <div className="space-y-4">
               <div>
                 <Label htmlFor="password">Password</Label>
@@ -221,7 +222,7 @@ const Profile = () => {
                 </Label>
               </div>
             </div>
-            <DialogFooter>
+            <AlertDialogFooter>
               <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
                 Cancel
               </Button>
@@ -232,9 +233,9 @@ const Profile = () => {
               >
                 Delete Account
               </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {/* 2FA Dialog */}
         <Dialog open={is2FADialogOpen} onOpenChange={setIs2FADialogOpen}>
