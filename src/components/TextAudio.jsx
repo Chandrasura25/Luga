@@ -47,6 +47,9 @@ const TextAudio = () => {
   const [cloneLoading, setCloneLoading] = useState(false);  
   const previewAudioRef = useRef(null);
   const audioRefs = useRef([]);
+  const [audioProgress, setAudioProgress] = useState({});
+  const [isPlaying, setIsPlaying] = useState({});
+  const progressIntervals = useRef({});
 
   const fetchVoices = async () => {
     try {
@@ -94,21 +97,46 @@ const TextAudio = () => {
     fetchCloneVoices();
   }, []);
 
+  const updateProgress = (index) => {
+    if (audioRefs.current[index]) {
+      const audio = audioRefs.current[index];
+      const progress = (audio.currentTime / audio.duration) * 100;
+      setAudioProgress(prev => ({ ...prev, [index]: progress }));
+      
+      if (audio.ended) {
+        setIsPlaying(prev => ({ ...prev, [index]: false }));
+        setPlayingIndex(null);
+        clearInterval(progressIntervals.current[index]);
+      }
+    }
+  };
+
   const handlePlayPause = (index) => {
     audioRefs.current.forEach((audio, i) => {
       if (audio && i !== index) {
         audio.pause();
         audio.currentTime = 0;
+        setIsPlaying(prev => ({ ...prev, [i]: false }));
+        clearInterval(progressIntervals.current[i]);
+        setAudioProgress(prev => ({ ...prev, [i]: 0 }));
       }
     });
+
     if (audioRefs.current[index]) {
       if (playingIndex === index) {
         audioRefs.current[index].pause();
         setPlayingIndex(null);
+        setIsPlaying(prev => ({ ...prev, [index]: false }));
+        clearInterval(progressIntervals.current[index]);
       } else {
         audioRefs.current[index].playbackRate = playbackRate;
         audioRefs.current[index].play();
         setPlayingIndex(index);
+        setIsPlaying(prev => ({ ...prev, [index]: true }));
+        
+        progressIntervals.current[index] = setInterval(() => {
+          updateProgress(index);
+        }, 100);
       }
     }
   };
@@ -172,9 +200,27 @@ const TextAudio = () => {
       );
       const audioUrl = response.data.audio_url;
       const audio = new Audio(audioUrl);
+      const newIndex = audioRefs.current.length;
+      
       audio.playbackRate = playbackRate;
       audioRefs.current.push(audio);
+      
+      audio.addEventListener('play', () => {
+        setIsPlaying(prev => ({ ...prev, [newIndex]: true }));
+        progressIntervals.current[newIndex] = setInterval(() => {
+          updateProgress(newIndex);
+        }, 100);
+      });
+
+      audio.addEventListener('ended', () => {
+        setIsPlaying(prev => ({ ...prev, [newIndex]: false }));
+        setPlayingIndex(null);
+        clearInterval(progressIntervals.current[newIndex]);
+      });
+
       audio.play();
+      setPlayingIndex(newIndex);
+      
       setUserVoices((prev) => [
         ...prev,
         {
@@ -396,6 +442,14 @@ const TextAudio = () => {
     }
   };
 
+  useEffect(() => {
+    return () => {
+      Object.values(progressIntervals.current).forEach(interval => {
+        clearInterval(interval);
+      });
+    };
+  }, []);
+
   return (
     <>
       <div className="flex-1 flex space-x-4">
@@ -561,7 +615,7 @@ const TextAudio = () => {
                       }
                     />
 
-                    {playingIndex === index ? (
+                    {isPlaying[index] ? (
                       <Pause
                         className="w-5 h-5 text-gray-400 hover:text-gray-600 cursor-pointer"
                         onClick={() => handlePlayPause(index)}
@@ -597,11 +651,19 @@ const TextAudio = () => {
                           {audioNames[index] || voice.file_name}
                         </div>
                       )}
-                      <div className="text-xs text-gray-500">
+                      
+                      <div className="mt-2 h-1 w-full bg-gray-200 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-black transition-all duration-100"
+                          style={{ width: `${audioProgress[index] || 0}%` }}
+                        />
+                      </div>
+
+                      <div className="text-xs text-gray-500 mt-1">
                         {audioDurations[index]
-                          ? `${Math.floor(
-                              audioDurations[index] / 60
-                            )}:${Math.floor(audioDurations[index] % 60)
+                          ? `${Math.floor(audioDurations[index] / 60)}:${Math.floor(
+                              audioDurations[index] % 60
+                            )
                               .toString()
                               .padStart(2, "0")}`
                           : "Loading..."}
