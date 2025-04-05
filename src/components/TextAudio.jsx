@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Play, Pause, Download, Edit3, Check, Mic } from "lucide-react";
 import axios, { axiosPrivate } from "../api/axios";
 import {
@@ -21,6 +21,7 @@ import {
 } from "../components/ui/tooltip";
 import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
+
 const TextAudio = () => {
   const { toast } = useToast();
   const { getUserEmail } = useAuth();
@@ -50,34 +51,44 @@ const TextAudio = () => {
   const [audioProgress, setAudioProgress] = useState({});
   const [isPlaying, setIsPlaying] = useState({});
   const progressIntervals = useRef({});
+  const [networkError, setNetworkError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const [lastSuccessfulState, setLastSuccessfulState] = useState(null);
+  const maxRetries = 3;
 
-  const fetchVoices = async () => {
-    try {
-      setLoading(true);
-      const response = await axios.get("/voice/voices");
-      // filter voices to include only those with the category 'premade'
-      const voices = response.data.filter(
-        (voice) => voice.category === "premade"
-      );
-      setVoices(voices);
-      setLoading(false);
-    } catch (error) {
-      console.error("Error fetching voices:", error);
-      setLoading(false);
-    }
-  };
+  const fetchVoices = useCallback(async () => {
+    return makeApiCall(
+      async () => {
+        setLoading(true);
+        try {
+          const response = await axios.get("/voice/voices");
+          const voices = response.data.filter(
+            (voice) => voice.category === "premade"
+          );
+          setVoices(voices);
+          return voices;
+        } finally {
+          setLoading(false);
+        }
+      },
+      "Failed to fetch voices. Please try again later."
+    );
+  }, []);
 
-  const fetchCloneVoices = async () => {
-    try {
-      const response = await axiosPrivate.post("/voice/cloned-voices", {
-        email: getUserEmail(),
-      });
-      setCloneVoices(response.data);
-    } catch (error) {
-      console.error("Error fetching clone voices:", error);
-    }
-  };
-  const fetchUserVoices = async () => {
+  const fetchCloneVoices = useCallback(async () => {
+    return makeApiCall(
+      async () => {
+        const response = await axiosPrivate.post("/voice/cloned-voices", {
+          email: getUserEmail(),
+        });
+        setCloneVoices(response.data);
+        return response.data;
+      },
+      "Failed to fetch cloned voices. Please try again later."
+    );
+  }, []);
+
+  const fetchUserVoices = useCallback(async () => {
     try {
       setFetchLoading(true);
       const response = await axiosPrivate.post("/voice/user-voices", {
@@ -89,13 +100,13 @@ const TextAudio = () => {
     } finally {
       setFetchLoading(false);
     }
-  };
+  }, [getUserEmail]);
 
   useEffect(() => {
     fetchVoices();
     fetchUserVoices();
     fetchCloneVoices();
-  }, []);
+  }, [fetchVoices, fetchUserVoices, fetchCloneVoices]);
 
   const updateProgress = (index) => {
     if (audioRefs.current[index]) {
@@ -111,35 +122,70 @@ const TextAudio = () => {
     }
   };
 
-  const handlePlayPause = (index) => {
-    audioRefs.current.forEach((audio, i) => {
-      if (audio && i !== index) {
-        audio.pause();
-        audio.currentTime = 0;
-        setIsPlaying(prev => ({ ...prev, [i]: false }));
-        clearInterval(progressIntervals.current[i]);
-        setAudioProgress(prev => ({ ...prev, [i]: 0 }));
-      }
-    });
+  const handlePlayPause = useCallback((index) => {
+    try {
+      audioRefs.current.forEach((audio, i) => {
+        if (audio && i !== index) {
+          audio.pause();
+          audio.currentTime = 0;
+          setIsPlaying(prev => ({ ...prev, [i]: false }));
+          clearInterval(progressIntervals.current[i]);
+          setAudioProgress(prev => ({ ...prev, [i]: 0 }));
+        }
+      });
 
-    if (audioRefs.current[index]) {
-      if (playingIndex === index) {
-        audioRefs.current[index].pause();
-        setPlayingIndex(null);
-        setIsPlaying(prev => ({ ...prev, [index]: false }));
-        clearInterval(progressIntervals.current[index]);
-      } else {
-        audioRefs.current[index].playbackRate = playbackRate;
-        audioRefs.current[index].play();
-        setPlayingIndex(index);
-        setIsPlaying(prev => ({ ...prev, [index]: true }));
+      if (audioRefs.current[index]) {
+        const audio = audioRefs.current[index];
         
-        progressIntervals.current[index] = setInterval(() => {
-          updateProgress(index);
-        }, 100);
+        audio.onerror = (e) => {
+          console.error("Audio playback error:", e);
+          toast({
+            variant: "destructive",
+            title: "Playback Error",
+            description: "Failed to play audio. Please try again.",
+          });
+          setIsPlaying(prev => ({ ...prev, [index]: false }));
+          setPlayingIndex(null);
+          clearInterval(progressIntervals.current[index]);
+        };
+
+        if (playingIndex === index) {
+          audio.pause();
+          setPlayingIndex(null);
+          setIsPlaying(prev => ({ ...prev, [index]: false }));
+          clearInterval(progressIntervals.current[index]);
+        } else {
+          const playPromise = audio.play();
+          if (playPromise !== undefined) {
+            playPromise
+              .then(() => {
+                audio.playbackRate = playbackRate;
+                setPlayingIndex(index);
+                setIsPlaying(prev => ({ ...prev, [index]: true }));
+                progressIntervals.current[index] = setInterval(() => {
+                  updateProgress(index);
+                }, 100);
+              })
+              .catch(error => {
+                console.error("Playback failed:", error);
+                toast({
+                  variant: "destructive",
+                  title: "Playback Error",
+                  description: "Failed to play audio. Please try again.",
+                });
+              });
+          }
+        }
       }
+    } catch (error) {
+      console.error("Error in handlePlayPause:", error);
+      toast({
+        variant: "destructive",
+        title: "Playback Error",
+        description: "An error occurred during playback. Please try again.",
+      });
     }
-  };
+  }, [playingIndex, playbackRate]);
 
   const handleDownload = (url, name) => {
     axios
@@ -166,8 +212,8 @@ const TextAudio = () => {
     if (!text.trim() && !selectedVoice) {
       toast({
         variant: "destructive",
-        title: "Please enter text and select a voice.",
-        description: "Please enter text and select a voice to generate speech.",
+        title: "Missing Information",
+        description: "Please enter text and select a voice.",
       });
       return;
     }
@@ -187,56 +233,84 @@ const TextAudio = () => {
       });
       return;
     }
-    const request = {
-      text,
-      voice_id: selectedVoice.voice_id,
-      user_email: getUserEmail(),
-    };
     try {
       setIsLoading(true);
-      const response = await axiosPrivate.post(
-        "/voice/text-to-speech",
-        request
+      const request = {
+        text: text.trim(),
+        voice_id: selectedVoice.voice_id,
+        user_email: getUserEmail(),
+      };
+
+      const response = await makeApiCall(
+        async () => axiosPrivate.post("/voice/text-to-speech", request),
+        "Failed to generate speech. Please try again later."
       );
+
       const audioUrl = response.data.audio_url;
-      const audio = new Audio(audioUrl);
+      const audio = new Audio();
       const newIndex = audioRefs.current.length;
-      
-      audio.playbackRate = playbackRate;
-      audioRefs.current.push(audio);
-      
-      audio.addEventListener('play', () => {
-        setIsPlaying(prev => ({ ...prev, [newIndex]: true }));
-        progressIntervals.current[newIndex] = setInterval(() => {
-          updateProgress(newIndex);
-        }, 100);
-      });
 
-      audio.addEventListener('ended', () => {
-        setIsPlaying(prev => ({ ...prev, [newIndex]: false }));
-        setPlayingIndex(null);
-        clearInterval(progressIntervals.current[newIndex]);
-      });
+      // Set up error handling for audio loading
+      audio.onerror = () => {
+        toast({
+          variant: "destructive",
+          title: "Audio Error",
+          description: "Failed to load audio. Please try again.",
+        });
+        setIsLoading(false);
+      };
 
-      audio.play();
-      setPlayingIndex(newIndex);
-      
-      setUserVoices((prev) => [
-        ...prev,
-        {
-          voice_id: selectedVoice.voice_id,
-          audio_url: audioUrl,
-          file_name: response.data.file_name,
-        },
-      ]);
-      setIsLoading(false);
+      // Set up audio loading
+      audio.oncanplaythrough = () => {
+        audio.playbackRate = playbackRate;
+        audioRefs.current.push(audio);
+
+        audio.addEventListener('play', () => {
+          setIsPlaying(prev => ({ ...prev, [newIndex]: true }));
+          progressIntervals.current[newIndex] = setInterval(() => {
+            updateProgress(newIndex);
+          }, 100);
+        });
+
+        audio.addEventListener('ended', () => {
+          setIsPlaying(prev => ({ ...prev, [newIndex]: false }));
+          setPlayingIndex(null);
+          clearInterval(progressIntervals.current[newIndex]);
+        });
+
+        // Start playback
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(error => {
+            console.error("Playback failed:", error);
+            toast({
+              variant: "destructive",
+              title: "Playback Error",
+              description: "Failed to play audio. Please try again.",
+            });
+          });
+        }
+
+        setPlayingIndex(newIndex);
+        setUserVoices(prev => [
+          ...prev,
+          {
+            voice_id: selectedVoice.voice_id,
+            audio_url: audioUrl,
+            file_name: response.data.file_name,
+          },
+        ]);
+      };
+
+      audio.src = audioUrl;
     } catch (error) {
+      console.error("Error in handleGenerateSpeech:", error);
       toast({
         variant: "destructive",
-        title: "Error generating speech.",
-        description: error.response.data.detail,
+        title: "Generation Error",
+        description: error.message || "Failed to generate speech. Please try again.",
       });
-      console.error("Error generating speech:", error);
+    } finally {
       setIsLoading(false);
     }
   };
@@ -450,8 +524,155 @@ const TextAudio = () => {
     };
   }, []);
 
+  // Save state to localStorage before unload
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      const stateToSave = {
+        text,
+        selectedVoice,
+        userVoices,
+        audioNames,
+        audioDurations,
+        playbackRate,
+        playingIndex,
+        audioProgress,
+      };
+      localStorage.setItem('textAudioState', JSON.stringify(stateToSave));
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [text, selectedVoice, userVoices, audioNames, audioDurations, playbackRate, playingIndex, audioProgress]);
+
+  // Restore state on mount
+  useEffect(() => {
+    try {
+      const savedState = localStorage.getItem('textAudioState');
+      if (savedState) {
+        const parsedState = JSON.parse(savedState);
+        setText(parsedState.text || "");
+        setSelectedVoice(parsedState.selectedVoice);
+        setUserVoices(parsedState.userVoices || []);
+        setAudioNames(parsedState.audioNames || {});
+        setAudioDurations(parsedState.audioDurations || {});
+        setPlaybackRate(parsedState.playbackRate || 1);
+        // Don't restore playing state to avoid autoplay issues
+        setAudioProgress(parsedState.audioProgress || {});
+      }
+    } catch (error) {
+      console.error("Error restoring state:", error);
+    }
+  }, []);
+
+  // Network status monitoring
+  useEffect(() => {
+    const handleOnline = () => {
+      setNetworkError(false);
+      // Retry failed operations if any
+      if (lastSuccessfulState) {
+        restoreLastSuccessfulState();
+      }
+    };
+
+    const handleOffline = () => {
+      setNetworkError(true);
+      toast({
+        variant: "destructive",
+        title: "Network Error",
+        description: "You are currently offline. Please check your internet connection.",
+      });
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [lastSuccessfulState]);
+
+  // Enhanced error handling for API calls
+  const makeApiCall = async (apiFunction, errorMessage) => {
+    try {
+      setRetryCount(0);
+      const result = await apiFunction();
+      setLastSuccessfulState({
+        text,
+        selectedVoice,
+        userVoices,
+        audioNames,
+        audioDurations,
+        playbackRate,
+        playingIndex,
+        audioProgress,
+      });
+      return result;
+    } catch (error) {
+      console.error(`Error in API call: ${error}`);
+      
+      if (!navigator.onLine) {
+        setNetworkError(true);
+        throw new Error("Network connection lost");
+      }
+
+      if (error.response?.status === 429) {
+        toast({
+          variant: "destructive",
+          title: "Rate Limit Exceeded",
+          description: "Please wait a moment before trying again.",
+        });
+        throw error;
+      }
+
+      if (retryCount < maxRetries) {
+        setRetryCount(prev => prev + 1);
+        toast({
+          variant: "warning",
+          title: "Retrying...",
+          description: `Attempt ${retryCount + 1} of ${maxRetries}`,
+        });
+        // Exponential backoff
+        await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
+        return makeApiCall(apiFunction, errorMessage);
+      }
+
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: errorMessage || error.response?.data?.detail || "An unexpected error occurred.",
+      });
+      throw error;
+    }
+  };
+
+  // Function to restore last successful state
+  const restoreLastSuccessfulState = useCallback(() => {
+    if (lastSuccessfulState) {
+      setText(lastSuccessfulState.text);
+      setSelectedVoice(lastSuccessfulState.selectedVoice);
+      setUserVoices(lastSuccessfulState.userVoices);
+      setAudioNames(lastSuccessfulState.audioNames);
+      setAudioDurations(lastSuccessfulState.audioDurations);
+      setPlaybackRate(lastSuccessfulState.playbackRate);
+      setAudioProgress(lastSuccessfulState.audioProgress);
+      
+      toast({
+        description: "Previous state has been restored.",
+      });
+    }
+  }, [lastSuccessfulState]);
+
+  // Add network error banner
+  const NetworkErrorBanner = () => networkError && (
+    <div className="fixed top-0 left-0 right-0 bg-red-500 text-white p-2 text-center z-50">
+      You are currently offline. Some features may be unavailable.
+    </div>
+  );
+
   return (
     <>
+      <NetworkErrorBanner />
       <div className="flex-1 flex space-x-4">
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col bg-white rounded-2xl overflow-hidden shadow-sm">
