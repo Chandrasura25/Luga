@@ -1,11 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useToast } from "../hooks/use-toast";
 import { axiosPrivate } from "../api/axios";
 import { useAuth } from "../components/auth";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "../components/ui/select";
@@ -22,6 +24,21 @@ const TextToVideo = () => {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [infoLoading, setInfoLoading] = useState(false);
   const [jobHistory, setJobHistory] = useState([]);
+  const [userVoices, setUserVoices] = useState([]);
+  const [fetchLoading, setFetchLoading] = useState(false);
+  const fetchUserVoices = useCallback(async () => {
+    try {
+      setFetchLoading(true);
+      const response = await axiosPrivate.post("/voice/user-voices", {
+        email: getUserEmail(),
+      });
+      setUserVoices(response.data);
+    } catch (error) {
+      console.error("Error fetching user voices:", error);
+    } finally {
+      setFetchLoading(false);
+    }
+  }, [getUserEmail]);
   const getAudioHistory = async () => {
     try {
       const response = await axiosPrivate.post("/video/get-audio", {
@@ -58,6 +75,7 @@ const TextToVideo = () => {
     getAudioHistory();
     getVideoHistory();
     getJobHistory();
+    fetchUserVoices();
   }, []);
 
   const handleFileUpload = async (event) => {
@@ -211,8 +229,8 @@ const TextToVideo = () => {
         toast({
           variant: "destructive",
           title: error.response.data.detail
-          ? error.response.data.detail
-          : "Error getting job info.",
+            ? error.response.data.detail
+            : "Error getting job info.",
         });
       }
     } finally {
@@ -276,15 +294,36 @@ const TextToVideo = () => {
                     <SelectValue placeholder="Choose from audio history" />
                   </SelectTrigger>
                   <SelectContent className="max-w-[300px] overflow-y-auto">
-                    {audioHistory.map((audio) => (
-                      <SelectItem
-                        value={audio.audio_id}
-                        key={audio.audio_id}
-                        className="whitespace-wrap"
-                      >
-                        {audio.file_name}
-                      </SelectItem>
-                    ))}
+                    <SelectGroup>
+                      <SelectLabel>Audio History</SelectLabel>
+                      {audioHistory
+                        .filter((audio) => audio.audio_id)
+                        .map((audio) => (
+                          <SelectItem
+                            value={audio.audio_id}
+                            key={audio.audio_id}
+                            className="whitespace-wrap"
+                          >
+                            {audio.file_name}
+                          </SelectItem>
+                        ))}
+                      <SelectLabel>User Voices</SelectLabel>
+                      {fetchLoading ? (
+                        <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-black"></div>
+                      ) : (
+                        userVoices
+                          .filter((voice) => voice.id)
+                          .map((voice) => (
+                            <SelectItem
+                              value={voice.id}
+                              key={voice.id}
+                              className="whitespace-wrap"
+                            >
+                              {voice.file_name}
+                            </SelectItem>
+                          ))
+                      )}
+                    </SelectGroup>
                   </SelectContent>
                 </Select>
                 <input
