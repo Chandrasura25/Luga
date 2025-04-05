@@ -1,58 +1,30 @@
-import React, { useState } from "react";
-import { Button } from "../components/ui/button";
+import React from "react";
 import { Label } from "../components/ui/label";
-import { useToast } from "../hooks/use-toast";
+import { Switch } from "../components/ui/switch";
 
 interface TwoFactorToggleProps {
   enabled: boolean;
-  setUser: React.Dispatch<React.SetStateAction<{
-    name: string;
-    email: string;
-    password: string;
-    twoFactorEnabled: boolean;
-    profileImage: string | null;
-  }>>;
+  onToggle: () => void;
 }
 
-const TwoFactorToggle = ({ enabled, setUser }: TwoFactorToggleProps) => {
-  const { toast } = useToast();
-  const [isEnabling, setIsEnabling] = useState(false);
-
-  const enableTwoFactor = () => {
-    setIsEnabling(true);
-    // Simulate enabling process
-    setTimeout(() => {
-      setUser(prev => ({
-        ...prev,
-        twoFactorEnabled: true
-      }));
-      setIsEnabling(false);
-      toast({
-        title: "Two-factor authentication enabled",
-        description: "Your account is now more secure.",
-      });
-    }, 1000);
-  };
-
+const TwoFactorToggle = ({ enabled, onToggle }: TwoFactorToggleProps) => {
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <Label>Two-factor authentication</Label>
-      <div className="flex items-center gap-3">
-        <div className="text-sm text-gray-500">
-          {enabled 
-            ? "Two-factor authentication is on" 
-            : "Two-factor authentication is off"}
+      <div className="flex items-center justify-between">
+        <div className="space-y-1">
+          <p className="text-sm font-medium leading-none">
+            {enabled ? "Enabled" : "Disabled"}
+          </p>
+          <p className="text-sm text-gray-500">
+            Add an extra layer of security to your account by requiring both your password and an authentication code from your mobile device.
+          </p>
         </div>
-        {!enabled && (
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={enableTwoFactor}
-            disabled={isEnabling}
-          >
-            {isEnabling ? "Enabling..." : "Enable"}
-          </Button>
-        )}
+        <Switch
+          checked={enabled}
+          onCheckedChange={onToggle}
+          aria-label="Toggle 2FA"
+        />
       </div>
     </div>
   );
