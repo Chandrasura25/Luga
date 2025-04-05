@@ -20,7 +20,7 @@ import axios from "../api/axios";
 import { useAuth } from "./auth";
 import { toast } from "react-toastify";
 import logo from "../assets/logo.jpeg";
-
+import Pricing from "./Pricing";
 const ChatbotInterface = () => {
   const [message, setMessage] = useState("");
   const [selectedLevel, setSelectedLevel] = useState("OpenAI");
@@ -135,7 +135,12 @@ const ChatbotInterface = () => {
       onClick: () => setActiveView("activity"),
       active: activeView === "activity",
     },
-    { icon: CreditCard, label: "Pricing" },
+    {
+      icon: CreditCard,
+      label: "Pricing",
+      onClick: () => setActiveView("pricing"),
+      active: activeView === "pricing",
+    },
     {
       icon: User,
       label: "Profile",
@@ -345,17 +350,17 @@ const ChatbotInterface = () => {
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
                       placeholder="Message Luga AI"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        sendMessage();
-                      }
-                    }}
-                    className="w-full p-4 pr-12 rounded-lg border focus:outline-none focus:border-gray-400"
-                  />
-                  <p className="text-xs pl-2 text-gray-500">
-                    Chat with Luga AI
-                  </p>
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          sendMessage();
+                        }
+                      }}
+                      className="w-full p-4 pr-12 rounded-lg border focus:outline-none focus:border-gray-400"
+                    />
+                    <p className="text-xs pl-2 text-gray-500">
+                      Chat with Luga AI
+                    </p>
                   </div>
                   <button
                     onClick={sendMessage}
@@ -430,6 +435,8 @@ const ChatbotInterface = () => {
           <ActivityPage />
         ) : activeView === "profile" ? (
           <Profile />
+        ) : activeView === "pricing" ? (
+          <Pricing />
         ) : (
           <div>No Activity</div>
         )}
