@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 
 const FAQSection = () => {
   const [openIndex, setOpenIndex] = useState(null);
@@ -23,6 +23,14 @@ const FAQSection = () => {
     {
       question: 'Can Luga AI integrate with other apps?',
       answer: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.'
+    },
+    {
+      question: 'Upload Your Text?',
+      answer: 'Please make sure your text does not exceed your allowed tier. Also, ensure your text is readable and not a scanned document.'
+    },
+    {
+      question: 'Clone Your Voice?',
+      answer: 'Please upload a well-recorded audio file that is between 1 and 5 minutes long.'
     }
   ];
 
