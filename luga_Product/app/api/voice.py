@@ -337,7 +337,6 @@ async def get_clone_voice(request: UserEmailRequest, service: ElevenLabsService 
         formatted_voices = []
         for voice in cloned_voices:
             voice_info = service.get_voice_by_id(voice["voice_id"])
-            print(voice_info.get("preview_url"), "voice_info")
             # Create a formatted voice object with all required information
             formatted_voice = Voice(
                 id=str(voice.get("_id", ObjectId())),  # Convert ObjectId to string
