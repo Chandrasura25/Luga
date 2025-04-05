@@ -44,6 +44,7 @@ const TextAudio = () => {
   const [cloneVoices, setCloneVoices] = useState([]);
   const [selectedFile, setSelectedFile] = useState(null);
   const [fileError, setFileError] = useState("");
+  const [cloneLoading, setCloneLoading] = useState(false);  
   const previewAudioRef = useRef(null);
   const audioRefs = useRef([]);
 
@@ -328,7 +329,7 @@ const TextAudio = () => {
       });
       return;
     }
-
+    setCloneLoading(true);
     try {
       const formData = new FormData();
       formData.append("file", selectedFile);
@@ -371,7 +372,9 @@ const TextAudio = () => {
           error.response?.data?.detail ||
           "An error occurred while cloning your voice.",
       });
-    }
+    } finally {
+      setCloneLoading(false);
+    } 
   };
 
   const handlePlayPreview = (voice) => {
@@ -717,6 +720,7 @@ const TextAudio = () => {
               <div className="flex space-x-4">
                 <button
                   className="flex-1 bg-gray-200 text-gray-800 rounded-md py-2 hover:bg-gray-300"
+                  disabled={cloneLoading}
                   onClick={() => {
                     setShowCloneDialog(false);
                     setSelectedFile(null);
@@ -730,9 +734,13 @@ const TextAudio = () => {
                 <button
                   className="flex-1 bg-black text-white rounded-md py-2 hover:bg-gray-800"
                   onClick={handleCloneVoice}
-                  disabled={!selectedFile || !!fileError}
-                >
-                  Clone Voice
+                  disabled={!selectedFile || !!fileError || cloneLoading}
+                > 
+                  {cloneLoading ? (
+                    <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
+                  ) : (
+                    "Clone Voice"
+                  )}
                 </button>
               </div>
             </div>
