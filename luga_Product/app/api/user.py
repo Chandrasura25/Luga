@@ -18,7 +18,49 @@ import smtplib
 import bcrypt
 import jwt
 import asyncio
+import pyotp
+import cloudinary
+import cloudinary.uploader
+from app.services.cloudinary import upload_file_to_cloudinary
+
 router = APIRouter()
+
+# Configure Cloudinary
+cloudinary.config(
+    cloud_name=Config.CLOUDINARY_CLOUD_NAME,
+    api_key=Config.CLOUDINARY_API_KEY,
+    api_secret=Config.CLOUDINARY_API_SECRET
+)
+
+async def upload_profile_image_to_cloudinary(file: UploadFile) -> Dict:
+    """
+    Upload a profile image to Cloudinary with specific settings for profile images.
+    Returns the Cloudinary upload result.
+    """
+    try:
+        # Read file content
+        contents = await file.read()
+        
+        # Upload to Cloudinary with profile image specific settings
+        upload_result = cloudinary.uploader.upload(
+            contents,
+            folder="profile_images",
+            allowed_formats=["jpg", "jpeg", "png", "gif"],
+            transformation=[
+                {"width": 400, "height": 400, "crop": "fill"},
+                {"quality": "auto:good"}
+            ],
+            resource_type="image"
+        )
+        
+        await file.seek(0)  # Reset file pointer for potential reuse
+        return upload_result
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to upload image to Cloudinary: {str(e)}"
+        )
 
 def validate_email(email: str) -> bool:
     # validate email format
@@ -53,7 +95,7 @@ def create_verification_token(email):
     access_token_expires = timedelta(minutes=Config.ACCESS_TOKEN_EXPIRE_MINUTES)
     return create_access_token(data={"sub": email}, expires_delta=access_token_expires)
 @router.post("/forgot-password")
-async def forgot_password(email: str = Body(..., embed=True)): 
+async def forgot_password(email: str = Body(..., embed=True)):
     try:
         user = await database.find_user_by_email(email=email)
         if not user:
@@ -235,4 +277,260 @@ async def delete_specific_accounts():
             print(f"No account found with email: {email}")
 
 # asyncio.create_task(delete_specific_accounts())
+
+# Profile endpoints
+@router.post("/profile")
+async def get_profile(email: str = Body(..., embed=True)):
+    try:
+        user = await database.find_user_by_email(email)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Convert ObjectId to string and remove sensitive information
+        user_dict = {
+            "id": str(user.get("_id")),
+            "email": user.get("email"),
+            "username": user.get("username"),
+            "profile_image": user.get("profile_image"),
+            "two_factor_enabled": user.get("two_factor_enabled", False),
+            "invitation_code": user.get("invitation_code"),
+            "subscription_status": user.get("subscription_status"),
+            "subscription_plan": user.get("subscription_plan"),
+            "subscription_expiry": user.get("subscription_expiry"),
+            "quota": user.get("quota"),
+            "created_at": user.get("created_at"),
+            "updated_at": user.get("updated_at"),
+        }
+        
+        return user_dict
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/profile/update")
+async def update_profile(
+    email: str = Body(...),
+    username: Optional[str] = Body(None),
+    current_password: Optional[str] = Body(None),
+    new_password: Optional[str] = Body(None)
+):
+    try:
+        user = await database.find_user_by_email(email)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        update_data = {}
+        
+        # Update username if provided
+        if username:
+            update_data["username"] = username
+        
+        # Update password if provided
+        if current_password and new_password:
+            if not bcrypt.checkpw(current_password.encode("utf-8"), user["password"].encode("utf-8")):
+                raise HTTPException(status_code=400, detail="Current password is incorrect")
+            
+            salt = bcrypt.gensalt()
+            hashed_password = bcrypt.hashpw(new_password.encode("utf-8"), salt).decode("utf-8")
+            update_data["password"] = hashed_password
+        
+        if update_data:
+            update_data["updated_at"] = datetime.now(timezone.utc)
+            await database.users_collection.update_one(
+                {"email": email},
+                {"$set": update_data}
+            )
+        
+        return {"message": "Profile updated successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/profile/upload-image")
+async def upload_profile_image(
+    file: UploadFile = File(...),
+    email: str = Form(...)
+):
+    try:
+        user = await database.find_user_by_email(email)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Validate file type
+        allowed_types = ["image/jpeg", "image/png", "image/gif"]
+        if file.content_type not in allowed_types:
+            raise HTTPException(
+                status_code=400,
+                detail="Only JPEG, PNG, and GIF images are allowed"
+            )
+        
+        # Upload to Cloudinary using our custom function
+        result = await upload_profile_image_to_cloudinary(file)
+        if not result or not result.get("secure_url"):
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to upload image"
+            )
+        
+        # Update user profile with image URL
+        await database.users_collection.update_one(
+            {"email": email},
+            {"$set": {
+                "profile_image": result["secure_url"],
+                "updated_at": datetime.now(timezone.utc)
+            }}
+        )
+        
+        return {
+            "message": "Profile image updated",
+            "image_url": result["secure_url"]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/profile/enable-2fa")
+async def enable_2fa(email: str = Body(..., embed=True)):
+    try:
+        user = await database.find_user_by_email(email)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Generate new TOTP secret
+        secret = pyotp.random_base32()
+        totp = pyotp.TOTP(secret)
+        
+        # Update user with 2FA secret (not enabled yet)
+        await database.users_collection.update_one(
+            {"email": email},
+            {"$set": {
+                "two_factor_secret": secret,
+                "updated_at": datetime.now(timezone.utc)
+            }}
+        )
+        
+        # Generate QR code provisioning URI
+        provisioning_uri = totp.provisioning_uri(email, issuer_name="Luga AI")
+        
+        return {
+            "secret": secret,
+            "provisioning_uri": provisioning_uri,
+            "message": "2FA setup initiated. Please verify the code to complete setup."
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/profile/verify-2fa")
+async def verify_2fa(
+    email: str = Body(...),
+    code: str = Body(...)
+):
+    try:
+        user = await database.find_user_by_email(email)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        if not user.get("two_factor_secret"):
+            raise HTTPException(status_code=400, detail="2FA setup not initiated")
+        
+        # Verify the code
+        totp = pyotp.TOTP(user["two_factor_secret"])
+        if not totp.verify(code):
+            raise HTTPException(status_code=400, detail="Invalid 2FA code")
+        
+        # Enable 2FA
+        await database.users_collection.update_one(
+            {"email": email},
+            {"$set": {
+                "two_factor_enabled": True,
+                "updated_at": datetime.now(timezone.utc)
+            }}
+        )
+        
+        return {"message": "2FA enabled successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/profile/disable-2fa")
+async def disable_2fa(
+    email: str = Body(...),
+    code: str = Body(...)
+):
+    try:
+        user = await database.find_user_by_email(email)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        if not user.get("two_factor_enabled"):
+            raise HTTPException(status_code=400, detail="2FA is not enabled")
+        
+        # Verify the code
+        totp = pyotp.TOTP(user["two_factor_secret"])
+        if not totp.verify(code):
+            raise HTTPException(status_code=400, detail="Invalid 2FA code")
+        
+        # Disable 2FA
+        await database.users_collection.update_one(
+            {"email": email},
+            {"$set": {
+                "two_factor_enabled": False,
+                "two_factor_secret": None,
+                "updated_at": datetime.now(timezone.utc)
+            }}
+        )
+        
+        return {"message": "2FA disabled successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/profile/delete-account")
+async def delete_account(
+    email: str = Body(...),
+    password: str = Body(...),
+    confirmation: bool = Body(...)
+):
+    try:
+        if not confirmation:
+            raise HTTPException(status_code=400, detail="Please confirm account deletion")
+        
+        user = await database.find_user_by_email(email)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Verify password
+        if not bcrypt.checkpw(password.encode("utf-8"), user["password"].encode("utf-8")):
+            raise HTTPException(status_code=400, detail="Invalid password")
+        
+        # Delete user data
+        await database.users_collection.delete_one({"email": email})
+        
+        # Delete user's conversations
+        await database.conversations_collection.delete_many({"user_id": str(user["_id"])})
+        
+        # Delete user's messages
+        await database.messages_collection.delete_many({"user_id": str(user["_id"])})
+        
+        return {"message": "Account deleted successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/profile/generate-invitation")
+async def generate_invitation(email: str = Body(..., embed=True)):
+    try:
+        user = await database.find_user_by_email(email)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Generate unique invitation code
+        invitation_code = str(uuid.uuid4())[:8].upper()
+        
+        # Update user with invitation code
+        await database.users_collection.update_one(
+            {"email": email},
+            {"$set": {
+                "invitation_code": invitation_code,
+                "updated_at": datetime.now(timezone.utc)
+            }}
+        )
+        
+        return {"invitation_code": invitation_code}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
