@@ -19,6 +19,7 @@ const ProfileForm = ({ user, setUser }: ProfileFormProps) => {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     username: user.username || "",
   });
@@ -33,10 +34,12 @@ const ProfileForm = ({ user, setUser }: ProfileFormProps) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
     setUser({
       ...user,
       ...formData,
     });
+    setLoading(false);
   };
 
   const handlePasswordChange = (e: React.FormEvent) => {
@@ -105,8 +108,8 @@ const ProfileForm = ({ user, setUser }: ProfileFormProps) => {
       </div>
 
       <div className="pt-4">
-        <Button type="submit">
-          Save Changes
+        <Button type="submit" disabled={loading}>
+          {loading ? "Saving..." : "Save Changes"}
         </Button>
       </div>
 
