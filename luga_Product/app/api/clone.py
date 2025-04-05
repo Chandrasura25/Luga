@@ -6,6 +6,9 @@ from fastapi.responses import FileResponse
 from werkzeug.utils import secure_filename
 from app.core.config import Config
 from pydantic import BaseModel
+from elevenlabs.client import ElevenLabs
+from elevenlabs import play
+from app.services.cloudinary import upload_audio_to_cloudinary
 
 load_dotenv()
 
@@ -155,42 +158,54 @@ async def generate_preview(request: PreviewRequest):
                 "similarity_boost": 0.5
             }
         }
-        
-        url = ELEVENLABS_TEXT_TO_SPEECH_URL.format(voice_id=request.voice_id)
+        print(request.voice_id, "request.voice_id")
+        url = f"https://api.elevenlabs.io/v1/text-to-speech/{request.voice_id}"
         response = requests.post(url, json=payload, headers=headers)
-        print(response.json())
+        # Check for error responses
         if response.status_code == 429:  # Quota exceeded
+            error_detail = response.json() if response.content else {"detail": "Quota exceeded"}
             raise HTTPException(
                 status_code=429,
                 detail={
                     "error": "quota_exceeded",
-                    "detail": response.json().get('detail', {}),
+                    "detail": error_detail.get('detail', {}),
                     "message": "You don't have enough credits to generate this preview"
                 }
             )
         
         if response.status_code != 200:
             error_detail = "Unknown error"
-            try:
-                error_json = response.json()
-                error_detail = error_json.get('detail', error_json.get('message', 'Unknown error'))
-            except:
-                error_detail = response.text or "Unknown error"
+            if response.content:
+                try:
+                    error_json = response.json()
+                    error_detail = error_json.get('detail', error_json.get('message', 'Unknown error'))
+                except:
+                    error_detail = response.text or "Unknown error"
             
             raise HTTPException(
                 status_code=response.status_code,
                 detail=f"Preview generation failed: {error_detail}"
             )
-        
-        # Save the audio file temporarily (or stream it directly)
-        preview_path = os.path.join(UPLOAD_FOLDER, f"preview_{request.voice_id}.mp3")
-        with open(preview_path, 'wb') as f:
-            f.write(response.content)
-        
-        return {
-            "preview_url": f"/preview-audio/{request.voice_id}",
-            "message": "Preview generated successfully"
-        }
+        file_name = f"{request.voice_id}.mp3"
+        audio_url = await upload_audio_to_cloudinary(response.content, "audio_files", file_name)
+        print(audio_url, "audio_url")
+        # For successful responses, don't try to parse as JSON since it's audio data
+        # if response.headers.get('content-type', '').startswith('audio/'):
+
+        #     # Save the audio file temporarily
+        #     preview_path = os.path.join(UPLOAD_FOLDER, f"preview_{request.voice_id}.mp3")
+        #     with open(preview_path, 'wb') as f:
+        #         f.write(response.content)
+            
+        #     return {
+        #         "preview_url": f"/preview-audio/{request.voice_id}",
+        #         "message": "Preview generated successfully"
+        #     }
+        # else:
+        #     raise HTTPException(
+        #         status_code=500,
+        #         detail="Unexpected response format from ElevenLabs API"
+        #     )
     
     except HTTPException:
         raise
