@@ -22,3 +22,6 @@ flask==3.0.2
 flask-cors==5.0.0
 Werkzeug==3.0.1
 elevenlabs
+pyotp==2.9.0
+qrcode==7.4.2
+pillow==10.2.0
