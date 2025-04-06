@@ -37,3 +37,10 @@ class Config:
     BAIDU_BOS_BUCKET_NAME = os.getenv("BAIDU_BOS_BUCKET_NAME", "luga-ai-bucket")
     GROK_API_KEY = os.getenv("GROK_API_KEY")
     DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
+    
+    # Social Authentication
+    GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
+    GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
+    
+    FACEBOOK_APP_ID = os.getenv("FACEBOOK_APP_ID", "")
+    FACEBOOK_APP_SECRET = os.getenv("FACEBOOK_APP_SECRET", "")
