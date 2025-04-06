@@ -3,8 +3,13 @@ import { toast } from "react-toastify";
 import axios from "../api/axios";
 import { Eye, EyeOff, Lock, Mail, User } from "lucide-react";
 import logo from "../assets/logo.jpeg";
+import SocialAuth from "./SocialAuth";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "./auth";
 
 const RegisterPage = () => {
+  const navigate = useNavigate();
+  const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
@@ -102,6 +107,12 @@ const RegisterPage = () => {
             </button>
           </div>
         </form>
+
+        <SocialAuth onSuccess={(token) => {
+          login(token);
+          navigate("/home");
+        }} />
+
         <div className="flex items-center justify-between">
           <p>Already had an account? </p>
           <a
