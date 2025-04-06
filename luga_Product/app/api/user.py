@@ -538,7 +538,7 @@ async def generate_invitation(email: str = Body(..., embed=True)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/auth/google")
-async def google_auth(token: str = Body(...)):
+async def google_auth(token: str = Body(..., embed=True)):
     try:
         # Verify Google token
         idinfo = id_token.verify_oauth2_token(
@@ -546,7 +546,7 @@ async def google_auth(token: str = Body(...)):
             google_requests.Request(),
             Config.GOOGLE_CLIENT_ID
         )
-
+        print("IDINFO: ", idinfo)
         # Get user info from token
         email = idinfo['email']
         name = idinfo.get('name', '')
@@ -567,11 +567,9 @@ async def google_auth(token: str = Body(...)):
                 "verified": True,  # Google accounts are pre-verified
                 "google_id": idinfo['sub'],
                 "subscription_status": "inactive",
-                "subscription_plan": "Demo",
-                "usage_limit": 10,
             }
             
-            result = await database.users_collection.insert_one(new_user)
+            await database.users_collection.insert_one(new_user)
             user = new_user
         else:
             # Update existing user with Google info
