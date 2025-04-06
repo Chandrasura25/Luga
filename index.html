@@ -9,6 +9,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Luga AI - Multimodal AI Solutions</title>
     <meta name="description" content="Multimodal generative AI solutions for Arabic users" />
+
+    <!-- Google Sign-In SDK -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+    <!-- Facebook SDK -->
+    <script>
+      window.fbAsyncInit = function() {
+        FB.init({
+          appId: '%REACT_APP_FACEBOOK_APP_ID%',
+          cookie: true,
+          xfbml: true,
+          version: 'v18.0'
+        });
+      };
+
+      (function(d, s, id) {
+        var js, fjs = d.getElementsByTagName(s)[0];
+        if (d.getElementById(id)) return;
+        js = d.createElement(s); js.id = id;
+        js.src = "https://connect.facebook.net/en_US/sdk.js";
+        fjs.parentNode.insertBefore(js, fjs);
+      }(document, 'script', 'facebook-jssdk'));
+    </script>
   </head>
   <body>
     <div id="root"></div>
