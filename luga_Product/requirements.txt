@@ -25,3 +25,7 @@ elevenlabs
 pyotp==2.9.0
 qrcode==7.4.2
 pillow==10.2.0
+
+# Social Authentication
+google-auth>=2.22.0
+facebook-sdk>=3.1.0
