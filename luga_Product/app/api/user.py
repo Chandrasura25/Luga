@@ -300,6 +300,7 @@ async def get_profile(email: str = Body(..., embed=True)):
             "subscription_status": user.get("subscription_status"),
             "subscription_plan": user.get("subscription_plan"),
             "subscription_expiry": user.get("subscription_expiry"),
+            "google_id": user.get("google_id"),
             "quota": user.get("quota"),
             "created_at": user.get("created_at"),
             "updated_at": user.get("updated_at"),
@@ -565,7 +566,7 @@ async def google_auth(token: str = Body(..., embed=True)):
                 "created_at": datetime.now(timezone.utc),
                 "updated_at": datetime.now(timezone.utc),
                 "verified": True,  # Google accounts are pre-verified
-                "google_id": idinfo['sub'],
+                "google_id": str(idinfo['sub']),
                 "subscription_status": "inactive",
             }
             
@@ -576,7 +577,7 @@ async def google_auth(token: str = Body(..., embed=True)):
             await database.users_collection.update_one(
                 {"email": email},
                 {"$set": {
-                    "google_id": idinfo['sub'],
+                    "google_id": str(idinfo['sub']),
                     "profile_image": picture,
                     "updated_at": datetime.now(timezone.utc)
                 }}
