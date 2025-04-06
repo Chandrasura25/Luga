@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { useToast } from "../hooks/use-toast";
 import { useAuth } from "../components/auth";
-import { axiosPrivate } from "../api/axios";
+import axiosPrivate from "../api/axios";
 import ProfileAvatar from "../components/ProfileAvatar";
 import ProfileForm from "../components/ProfileForm";
 import TwoFactorToggle from "../components/TwoFactorToggle";
@@ -174,7 +174,7 @@ const Profile = () => {
             <ProfileAvatar profileImage={user.profileImage} setUser={setUser} />
             <ProfileForm user={user} setUser={handleProfileUpdate} />
             <TwoFactorToggle enabled={user.twoFactorEnabled} onToggle={handle2FAToggle} />
-            <SocialAccounts />
+            <SocialAccounts user={user} setUser={handleProfileUpdate} />
             <div className="pt-2">
               <Button
                 variant="outline"
