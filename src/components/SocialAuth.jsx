@@ -13,7 +13,6 @@ const SocialAuth = ({ onSuccess }) => {
   const handleGoogleLogin = async (response) => {
     setLoading((prev) => ({ ...prev, google: true }));
     try {
-      console.log("response: ", response);
       const { credential } = response;
       const result = await axios.post("/user/auth/google", {
         token: credential,
