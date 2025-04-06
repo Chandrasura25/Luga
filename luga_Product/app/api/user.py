@@ -22,6 +22,9 @@ import pyotp
 import cloudinary
 import cloudinary.uploader
 from app.services.cloudinary import upload_file_to_cloudinary
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
+import facebook
 
 router = APIRouter()
 
@@ -531,6 +534,190 @@ async def generate_invitation(email: str = Body(..., embed=True)):
         )
         
         return {"invitation_code": invitation_code}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/auth/google")
+async def google_auth(token: str = Body(...)):
+    try:
+        # Verify Google token
+        idinfo = id_token.verify_oauth2_token(
+            token,
+            google_requests.Request(),
+            Config.GOOGLE_CLIENT_ID
+        )
+
+        # Get user info from token
+        email = idinfo['email']
+        name = idinfo.get('name', '')
+        picture = idinfo.get('picture', '')
+
+        # Check if user exists
+        user = await database.find_user_by_email(email)
+        
+        if not user:
+            # Create new user
+            new_user = {
+                "id": str(ObjectId()),
+                "email": email,
+                "username": name,
+                "profile_image": picture,
+                "created_at": datetime.now(timezone.utc),
+                "updated_at": datetime.now(timezone.utc),
+                "verified": True,  # Google accounts are pre-verified
+                "google_id": idinfo['sub'],
+                "subscription_status": "inactive",
+                "subscription_plan": "Demo",
+                "usage_limit": 10,
+            }
+            
+            result = await database.users_collection.insert_one(new_user)
+            user = new_user
+        else:
+            # Update existing user with Google info
+            await database.users_collection.update_one(
+                {"email": email},
+                {"$set": {
+                    "google_id": idinfo['sub'],
+                    "profile_image": picture,
+                    "updated_at": datetime.now(timezone.utc)
+                }}
+            )
+
+        # Generate access token
+        access_token_expires = timedelta(minutes=Config.ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={"sub": email},
+            expires_delta=access_token_expires
+        )
+
+        return {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "user": {
+                "email": email,
+                "username": name,
+                "profile_image": picture
+            }
+        }
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail="Invalid Google token")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/auth/facebook")
+async def facebook_auth(access_token: str = Body(...)):
+    try:
+        # Verify Facebook token and get user info
+        graph = facebook.GraphAPI(access_token=access_token)
+        profile = graph.get_object(
+            'me',
+            fields='id,name,email,picture.type(large)'
+        )
+
+        email = profile.get('email')
+        if not email:
+            raise HTTPException(
+                status_code=400,
+                detail="Email not provided by Facebook"
+            )
+
+        name = profile.get('name', '')
+        picture = profile.get('picture', {}).get('data', {}).get('url', '')
+
+        # Check if user exists
+        user = await database.find_user_by_email(email)
+        
+        if not user:
+            # Create new user
+            new_user = {
+                "id": str(ObjectId()),
+                "email": email,
+                "username": name,
+                "profile_image": picture,
+                "created_at": datetime.now(timezone.utc),
+                "updated_at": datetime.now(timezone.utc),
+                "verified": True,  # Facebook accounts are pre-verified
+                "facebook_id": profile['id'],
+                "subscription_status": "inactive",
+                "subscription_plan": "Demo",
+                "usage_limit": 10,
+            }
+            
+            result = await database.users_collection.insert_one(new_user)
+            user = new_user
+        else:
+            # Update existing user with Facebook info
+            await database.users_collection.update_one(
+                {"email": email},
+                {"$set": {
+                    "facebook_id": profile['id'],
+                    "profile_image": picture,
+                    "updated_at": datetime.now(timezone.utc)
+                }}
+            )
+
+        # Generate access token
+        access_token_expires = timedelta(minutes=Config.ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={"sub": email},
+            expires_delta=access_token_expires
+        )
+
+        return {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "user": {
+                "email": email,
+                "username": name,
+                "profile_image": picture
+            }
+        }
+
+    except facebook.GraphAPIError as e:
+        raise HTTPException(status_code=400, detail="Invalid Facebook token")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/profile/unlink-social")
+async def unlink_social_account(
+    email: str = Body(...),
+    platform: str = Body(...)  # "google" or "facebook"
+):
+    try:
+        user = await database.find_user_by_email(email)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # Check if it's the only authentication method
+        has_password = "password" in user
+        has_google = "google_id" in user
+        has_facebook = "facebook_id" in user
+        
+        auth_methods = sum([
+            bool(has_password),
+            bool(has_google and platform != "google"),
+            bool(has_facebook and platform != "facebook")
+        ])
+        
+        if auth_methods == 0:
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot unlink the only authentication method. Please add another method first."
+            )
+
+        # Remove the social ID
+        unset_field = f"{platform}_id"
+        await database.users_collection.update_one(
+            {"email": email},
+            {
+                "$unset": {unset_field: ""},
+                "$set": {"updated_at": datetime.now(timezone.utc)}
+            }
+        )
+
+        return {"message": f"{platform.capitalize()} account unlinked successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
