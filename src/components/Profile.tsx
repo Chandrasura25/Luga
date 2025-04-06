@@ -32,6 +32,7 @@ const Profile = () => {
     password: "********",
     twoFactorEnabled: false,
     profileImage: null as string | null,
+    google_id: null as string | null,
   });
 
   useEffect(() => {
@@ -50,6 +51,7 @@ const Profile = () => {
         password: "********",
         twoFactorEnabled: response.data.two_factor_enabled || false,
         profileImage: response.data.profile_image,
+        google_id: response.data.google_id,
       });
     } catch (error) {
       toast({
