@@ -5,6 +5,7 @@ import axios from "../api/axios";
 import logo from "../assets/logo.jpeg";
 import { toast } from "react-toastify";
 import { Eye, EyeOff, Lock, Mail } from "lucide-react"; // Import eye icons
+import SocialAuth from "./SocialAuth";
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -114,6 +115,9 @@ const LoginPage = () => {
             </button>
           </div>
         </form>
+
+        <SocialAuth onSuccess={login} />
+
         <div className="flex items-center justify-between">
           <a
             className="text-blue-600 hover:text-blue-800 hover:underline"
