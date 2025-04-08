@@ -6,6 +6,41 @@ import logo from "../assets/logo.jpeg";
 import SocialAuth from "./SocialAuth";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "./auth";
+import { termsAndConditions } from "../constants";
+
+const TermsDialog = ({ isOpen, onClose }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
+      <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+        <h2 className="text-2xl font-bold mb-4">Terms and Conditions</h2>
+        <div className="space-y-4">
+          {termsAndConditions.map((section, index) => (
+            <div key={index}>
+              <h3 className="text-lg font-semibold mb-2">{section.title}</h3>
+              {Array.isArray(section.content) ? (
+                <ul className="list-disc pl-6 space-y-2">
+                  {section.content.map((item, i) => (
+                    <li key={i} className="text-gray-700">{item}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-gray-700">{section.content}</p>
+              )}
+            </div>
+          ))}
+        </div>
+        <button
+          onClick={onClose}
+          className="mt-6 px-4 py-2 bg-[#8EB4CC] text-white rounded-md hover:bg-[#8EB4CC]/80"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  );
+};
 
 const RegisterPage = () => {
   const navigate = useNavigate();
@@ -15,9 +50,17 @@ const RegisterPage = () => {
   const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(true);
+  const [showTerms, setShowTerms] = useState(false);
 
   const handleRegister = async (e) => {
     e.preventDefault();
+    
+    if (!acceptedTerms) {
+      toast.error("Please accept the Terms and Conditions to register.");
+      return;
+    }
+
     setLoading(true);
     const user = { email, password, username };
     try {
@@ -44,6 +87,7 @@ const RegisterPage = () => {
 
   return (
     <div className="h-screen bg-white flex justify-center items-center">
+      <TermsDialog isOpen={showTerms} onClose={() => setShowTerms(false)} />
       {/* container */}
       <div className="max-w-md w-full flex flex-col gap-4 z-10 bg-[rgba(255,255,255,0.3)] backdrop-blur-sm rounded-lg p-4">
         <div className="w-full h-full">
@@ -97,11 +141,36 @@ const RegisterPage = () => {
               )}{" "}
             </button>
           </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="terms"
+              checked={acceptedTerms}
+              onChange={(e) => setAcceptedTerms(e.target.checked)}
+              className="w-4 h-4 text-[#8EB4CC] border-gray-300 rounded focus:ring-[#8EB4CC]"
+            />
+            <label htmlFor="terms" className="text-sm">
+              I agree to the{" "}
+              <button
+                type="button"
+                onClick={() => setShowTerms(true)}
+                className="text-[#8EB4CC] hover:underline"
+              >
+                Terms and Conditions
+              </button>
+            </label>
+          </div>
+
           <div className="flex items-center justify-center">
             <button
               type="submit"
-              disabled={loading}
-              className="px-6 py-2.5 w-full text-base font-medium text-white bg-[#8EB4CC] rounded-md hover:bg-[#8EB4CC]/80 transition-colors"
+              disabled={loading || !acceptedTerms}
+              className={`px-6 py-2.5 w-full text-base font-medium text-white rounded-md transition-colors ${
+                !acceptedTerms
+                  ? "bg-gray-400 cursor-not-allowed"
+                  : "bg-[#8EB4CC] hover:bg-[#8EB4CC]/80"
+              }`}
             >
               {loading ? "Registering..." : "Register"}
             </button>
