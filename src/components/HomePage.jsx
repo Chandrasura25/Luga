@@ -126,12 +126,6 @@ const HomePage = () => {
           >
             About
           </Link>
-          <button
-            onClick={() => scrollToSection("book-intro")}
-            className="px-6 py-2.5 text-base font-medium text-white bg-black rounded-full hover:bg-gray-800 transition-colors"
-          >
-            Book an intro
-          </button>
 
           <div className="relative">
             <div
