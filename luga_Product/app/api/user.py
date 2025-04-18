@@ -150,7 +150,7 @@ async def verify_email(token: str):
         raise HTTPException(status_code=400, detail="User not found")
     if user["verified"]:
         # return {"message": "Email already verified"}
-        return RedirectResponse(url="https://www.luga.app/login", status_code=status.HTTP_302_FOUND)
+        return RedirectResponse(url="https://www.luga-ai.com/login", status_code=status.HTTP_302_FOUND)
 
     await database.users_collection.update_one(
         {"email": email},
@@ -158,7 +158,7 @@ async def verify_email(token: str):
     )
     access_token_expires = timedelta(minutes=Config.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(data={"sub": email}, expires_delta=access_token_expires)
-    return RedirectResponse(url=f"https://www.luga.app/login?token={access_token}&email={email}", status_code=status.HTTP_302_FOUND)
+    return RedirectResponse(url=f"https://www.luga-ai.com/login?token={access_token}&email={email}", status_code=status.HTTP_302_FOUND)
 
     # return RedirectResponse(url="https://www.luga.app/login", status_code=status.HTTP_302_FOUND)
 
@@ -192,7 +192,7 @@ async def create_user(user: User, background_tasks: BackgroundTasks):
         "verified": False,
         "verification_token": verification_token,
     }
-    verification_url = f"https://www.luga.app/api/user/verify?token={verification_token}"
+    verification_url = f"https://www.luga-ai.com/api/user/verify?token={verification_token}"
     background_tasks.add_task(send_email, email, "Verify Your Email", f"{verification_url}")
 
     try:
