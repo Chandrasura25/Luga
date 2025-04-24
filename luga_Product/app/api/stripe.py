@@ -101,8 +101,8 @@ async def create_subscription_session(subs_request: SubscriptionRequest):
             }],
             #It's a onetime payment, not subscription
             mode="payment",
-            success_url="https://www.luga.app/success?session_id={CHECKOUT_SESSION_ID}",
-            cancel_url="https://www.luga.app/cancel",
+            success_url="https://www.luga-ai.com/success?session_id={CHECKOUT_SESSION_ID}",
+            cancel_url="https://www.luga-ai.com/cancel",
             customer_email=email,
             metadata={"name": name, "email": email}
         )

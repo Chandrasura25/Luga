@@ -42,7 +42,7 @@ export default SuccessPage;
 //     console.log("SUCESS PAGE")
 //     if (sessionId) {
 //       // Send sessionId to backend to verify payment
-//       fetch(`https://www.luga.app/api/stripe/verify-payment?session_id=${sessionId}`)
+//       fetch(`https://www.luga-ai.com/api/stripe/verify-payment?session_id=${sessionId}`)
 //         .then((res) => res.json())
 //         .then((data) => {
 //           console.log("Payment Verification Response:", data);

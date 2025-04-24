@@ -160,7 +160,7 @@ async def verify_email(token: str):
     access_token = create_access_token(data={"sub": email}, expires_delta=access_token_expires)
     return RedirectResponse(url=f"https://www.luga-ai.com/login?token={access_token}&email={email}", status_code=status.HTTP_302_FOUND)
 
-    # return RedirectResponse(url="https://www.luga.app/login", status_code=status.HTTP_302_FOUND)
+    # return RedirectResponse(url="https://www.luga-ai.com/login", status_code=status.HTTP_302_FOUND)
 
     # return {"message": "Email successfully verified! You can now log in."}
 
