@@ -45,7 +45,7 @@ const TextAudio = () => {
   const [cloneVoices, setCloneVoices] = useState([]);
   const [selectedFile, setSelectedFile] = useState(null);
   const [fileError, setFileError] = useState("");
-  const [cloneLoading, setCloneLoading] = useState(false);  
+  const [cloneLoading, setCloneLoading] = useState(false);
   const previewAudioRef = useRef(null);
   const audioRefs = useRef([]);
   const [audioProgress, setAudioProgress] = useState({});
@@ -57,35 +57,29 @@ const TextAudio = () => {
   const maxRetries = 3;
 
   const fetchVoices = useCallback(async () => {
-    return makeApiCall(
-      async () => {
-        setLoading(true);
-        try {
-      const response = await axios.get("/voice/voices");
-          const voices = response.data.filter(
-            (voice) => voice.category === "premade"
-          );
-      setVoices(voices);
-          return voices;
-        } finally {
-      setLoading(false);
-    }
-      },
-      "Failed to fetch voices. Please try again later."
-    );
+    return makeApiCall(async () => {
+      setLoading(true);
+      try {
+        const response = await axios.get("/voice/voices");
+        const voices = response.data.filter(
+          (voice) => voice.category === "premade"
+        );
+        setVoices(voices);
+        return voices;
+      } finally {
+        setLoading(false);
+      }
+    }, "Failed to fetch voices. Please try again later.");
   }, []);
 
   const fetchCloneVoices = useCallback(async () => {
-    return makeApiCall(
-      async () => {
-        const response = await axiosPrivate.post("/voice/cloned-voices", {
-          email: getUserEmail(),
-        });
-        setCloneVoices(response.data);
-        return response.data;
-      },
-      "Failed to fetch cloned voices. Please try again later."
-    );
+    return makeApiCall(async () => {
+      const response = await axiosPrivate.post("/voice/cloned-voices", {
+        email: getUserEmail(),
+      });
+      setCloneVoices(response.data);
+      return response.data;
+    }, "Failed to fetch cloned voices. Please try again later.");
   }, []);
 
   const fetchUserVoices = useCallback(async () => {
@@ -112,80 +106,83 @@ const TextAudio = () => {
     if (audioRefs.current[index]) {
       const audio = audioRefs.current[index];
       const progress = (audio.currentTime / audio.duration) * 100;
-      setAudioProgress(prev => ({ ...prev, [index]: progress }));
-      
+      setAudioProgress((prev) => ({ ...prev, [index]: progress }));
+
       if (audio.ended) {
-        setIsPlaying(prev => ({ ...prev, [index]: false }));
+        setIsPlaying((prev) => ({ ...prev, [index]: false }));
         setPlayingIndex(null);
         clearInterval(progressIntervals.current[index]);
       }
     }
   };
 
-  const handlePlayPause = useCallback((index) => {
-    try {
-    audioRefs.current.forEach((audio, i) => {
-      if (audio && i !== index) {
-        audio.pause();
-        audio.currentTime = 0;
-          setIsPlaying(prev => ({ ...prev, [i]: false }));
-          clearInterval(progressIntervals.current[i]);
-          setAudioProgress(prev => ({ ...prev, [i]: 0 }));
-      }
-    });
+  const handlePlayPause = useCallback(
+    (index) => {
+      try {
+        audioRefs.current.forEach((audio, i) => {
+          if (audio && i !== index) {
+            audio.pause();
+            audio.currentTime = 0;
+            setIsPlaying((prev) => ({ ...prev, [i]: false }));
+            clearInterval(progressIntervals.current[i]);
+            setAudioProgress((prev) => ({ ...prev, [i]: 0 }));
+          }
+        });
 
-    if (audioRefs.current[index]) {
-        const audio = audioRefs.current[index];
-        
-        audio.onerror = (e) => {
-          console.error("Audio playback error:", e);
-          toast({
-            variant: "destructive",
-            title: "Playback Error",
-            description: "Failed to play audio. Please try again.",
-          });
-          setIsPlaying(prev => ({ ...prev, [index]: false }));
-          setPlayingIndex(null);
-          clearInterval(progressIntervals.current[index]);
-        };
+        if (audioRefs.current[index]) {
+          const audio = audioRefs.current[index];
 
-      if (playingIndex === index) {
-          audio.pause();
-        setPlayingIndex(null);
-          setIsPlaying(prev => ({ ...prev, [index]: false }));
-          clearInterval(progressIntervals.current[index]);
-      } else {
-          const playPromise = audio.play();
-          if (playPromise !== undefined) {
-            playPromise
-              .then(() => {
-                audio.playbackRate = playbackRate;
-        setPlayingIndex(index);
-                setIsPlaying(prev => ({ ...prev, [index]: true }));
-                progressIntervals.current[index] = setInterval(() => {
-                  updateProgress(index);
-                }, 100);
-              })
-              .catch(error => {
-                console.error("Playback failed:", error);
-                toast({
-                  variant: "destructive",
-                  title: "Playback Error",
-                  description: "Failed to play audio. Please try again.",
+          audio.onerror = (e) => {
+            console.error("Audio playback error:", e);
+            toast({
+              variant: "destructive",
+              title: "Playback Error",
+              description: "Failed to play audio. Please try again.",
+            });
+            setIsPlaying((prev) => ({ ...prev, [index]: false }));
+            setPlayingIndex(null);
+            clearInterval(progressIntervals.current[index]);
+          };
+
+          if (playingIndex === index) {
+            audio.pause();
+            setPlayingIndex(null);
+            setIsPlaying((prev) => ({ ...prev, [index]: false }));
+            clearInterval(progressIntervals.current[index]);
+          } else {
+            const playPromise = audio.play();
+            if (playPromise !== undefined) {
+              playPromise
+                .then(() => {
+                  audio.playbackRate = playbackRate;
+                  setPlayingIndex(index);
+                  setIsPlaying((prev) => ({ ...prev, [index]: true }));
+                  progressIntervals.current[index] = setInterval(() => {
+                    updateProgress(index);
+                  }, 100);
+                })
+                .catch((error) => {
+                  console.error("Playback failed:", error);
+                  toast({
+                    variant: "destructive",
+                    title: "Playback Error",
+                    description: "Failed to play audio. Please try again.",
+                  });
                 });
-              });
+            }
           }
         }
+      } catch (error) {
+        console.error("Error in handlePlayPause:", error);
+        toast({
+          variant: "destructive",
+          title: "Playback Error",
+          description: "An error occurred during playback. Please try again.",
+        });
       }
-    } catch (error) {
-      console.error("Error in handlePlayPause:", error);
-      toast({
-        variant: "destructive",
-        title: "Playback Error",
-        description: "An error occurred during playback. Please try again.",
-      });
-    }
-  }, [playingIndex, playbackRate]);
+    },
+    [playingIndex, playbackRate]
+  );
 
   const handleDownload = (url, name) => {
     axios
@@ -262,18 +259,18 @@ const TextAudio = () => {
 
       // Set up audio loading
       audio.oncanplaythrough = () => {
-      audio.playbackRate = playbackRate;
-      audioRefs.current.push(audio);
+        audio.playbackRate = playbackRate;
+        audioRefs.current.push(audio);
 
-        audio.addEventListener('play', () => {
-          setIsPlaying(prev => ({ ...prev, [newIndex]: true }));
+        audio.addEventListener("play", () => {
+          setIsPlaying((prev) => ({ ...prev, [newIndex]: true }));
           progressIntervals.current[newIndex] = setInterval(() => {
             updateProgress(newIndex);
           }, 100);
         });
 
-        audio.addEventListener('ended', () => {
-          setIsPlaying(prev => ({ ...prev, [newIndex]: false }));
+        audio.addEventListener("ended", () => {
+          setIsPlaying((prev) => ({ ...prev, [newIndex]: false }));
           setPlayingIndex(null);
           clearInterval(progressIntervals.current[newIndex]);
         });
@@ -281,7 +278,7 @@ const TextAudio = () => {
         // Start playback
         const playPromise = audio.play();
         if (playPromise !== undefined) {
-          playPromise.catch(error => {
+          playPromise.catch((error) => {
             console.error("Playback failed:", error);
             toast({
               variant: "destructive",
@@ -292,14 +289,14 @@ const TextAudio = () => {
         }
 
         setPlayingIndex(newIndex);
-        setUserVoices(prev => [
-        ...prev,
-        {
-          voice_id: selectedVoice.voice_id,
-          audio_url: audioUrl,
-          file_name: response.data.file_name,
-        },
-      ]);
+        setUserVoices((prev) => [
+          ...prev,
+          {
+            voice_id: selectedVoice.voice_id,
+            audio_url: audioUrl,
+            file_name: response.data.file_name,
+          },
+        ]);
       };
 
       audio.src = audioUrl;
@@ -308,7 +305,8 @@ const TextAudio = () => {
       toast({
         variant: "destructive",
         title: "Generation Error",
-        description: error.message || "Failed to generate speech. Please try again.",
+        description:
+          error.message || "Failed to generate speech. Please try again.",
       });
     } finally {
       setIsLoading(false);
@@ -350,13 +348,6 @@ const TextAudio = () => {
     }));
   };
 
-  const handleNameKeyPress = (index, event) => {
-    if (event.key === "Enter") {
-      handleNameUpdate(index, audioNames[index]);
-      setEditingIndex(null);
-    }
-  };
-
   useEffect(() => {
     if (playingIndex !== null && audioRefs.current[playingIndex]) {
       audioRefs.current[playingIndex].playbackRate = playbackRate;
@@ -370,15 +361,15 @@ const TextAudio = () => {
       const formData = new FormData();
       formData.append("file", file);
       formData.append("user_email", getUserEmail());
-  
+
       try {
         const response = await axiosPrivate.post(
           "/voice/upload-document",
           formData,
           {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
+            headers: {
+              "Content-Type": "multipart/form-data",
+            },
           }
         );
         setText(response.data.text);
@@ -397,7 +388,7 @@ const TextAudio = () => {
       }
     }
   };
-  
+
   const handleFileSelect = (event) => {
     const file = event.target.files[0];
     if (file) {
@@ -494,7 +485,7 @@ const TextAudio = () => {
       });
     } finally {
       setCloneLoading(false);
-    } 
+    }
   };
 
   const handlePlayPreview = (voice) => {
@@ -518,7 +509,7 @@ const TextAudio = () => {
 
   useEffect(() => {
     return () => {
-      Object.values(progressIntervals.current).forEach(interval => {
+      Object.values(progressIntervals.current).forEach((interval) => {
         clearInterval(interval);
       });
     };
@@ -537,17 +528,26 @@ const TextAudio = () => {
         playingIndex,
         audioProgress,
       };
-      localStorage.setItem('textAudioState', JSON.stringify(stateToSave));
+      localStorage.setItem("textAudioState", JSON.stringify(stateToSave));
     };
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [text, selectedVoice, userVoices, audioNames, audioDurations, playbackRate, playingIndex, audioProgress]);
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [
+    text,
+    selectedVoice,
+    userVoices,
+    audioNames,
+    audioDurations,
+    playbackRate,
+    playingIndex,
+    audioProgress,
+  ]);
 
   // Restore state on mount
   useEffect(() => {
     try {
-      const savedState = localStorage.getItem('textAudioState');
+      const savedState = localStorage.getItem("textAudioState");
       if (savedState) {
         const parsedState = JSON.parse(savedState);
         setText(parsedState.text || "");
@@ -579,16 +579,17 @@ const TextAudio = () => {
       toast({
         variant: "destructive",
         title: "Network Error",
-        description: "You are currently offline. Please check your internet connection.",
+        description:
+          "You are currently offline. Please check your internet connection.",
       });
     };
 
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
 
     return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
     };
   }, [lastSuccessfulState]);
 
@@ -610,7 +611,7 @@ const TextAudio = () => {
       return result;
     } catch (error) {
       console.error(`Error in API call: ${error}`);
-      
+
       if (!navigator.onLine) {
         setNetworkError(true);
         throw new Error("Network connection lost");
@@ -626,21 +627,26 @@ const TextAudio = () => {
       }
 
       if (retryCount < maxRetries) {
-        setRetryCount(prev => prev + 1);
+        setRetryCount((prev) => prev + 1);
         toast({
           variant: "warning",
           title: "Retrying...",
           description: `Attempt ${retryCount + 1} of ${maxRetries}`,
         });
         // Exponential backoff
-        await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
+        await new Promise((resolve) =>
+          setTimeout(resolve, Math.pow(2, retryCount) * 1000)
+        );
         return makeApiCall(apiFunction, errorMessage);
       }
 
       toast({
         variant: "destructive",
         title: "Error",
-        description: errorMessage || error.response?.data?.detail || "An unexpected error occurred.",
+        description:
+          errorMessage ||
+          error.response?.data?.detail ||
+          "An unexpected error occurred.",
       });
       throw error;
     }
@@ -656,7 +662,7 @@ const TextAudio = () => {
       setAudioDurations(lastSuccessfulState.audioDurations);
       setPlaybackRate(lastSuccessfulState.playbackRate);
       setAudioProgress(lastSuccessfulState.audioProgress);
-      
+
       toast({
         description: "Previous state has been restored.",
       });
@@ -664,11 +670,12 @@ const TextAudio = () => {
   }, [lastSuccessfulState]);
 
   // Add network error banner
-  const NetworkErrorBanner = () => networkError && (
-    <div className="fixed top-0 left-0 right-0 bg-red-500 text-white p-2 text-center z-50">
-      You are currently offline. Some features may be unavailable.
-    </div>
-  );
+  const NetworkErrorBanner = () =>
+    networkError && (
+      <div className="fixed top-0 left-0 right-0 bg-red-500 text-white p-2 text-center z-50">
+        You are currently offline. Some features may be unavailable.
+      </div>
+    );
 
   return (
     <>
@@ -677,45 +684,45 @@ const TextAudio = () => {
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col bg-white rounded-2xl overflow-hidden shadow-sm">
           <div className="flex-1 p-8 flex flex-col">
-          {/* Text Input Area */}
-          <div className="flex-1">
-            <textarea
-              placeholder="Start typing here or paste any text you want to turn into lifelike speech"
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              className="w-full h-[calc(100vh-240px)] p-6 border rounded-2xl resize-none focus:outline-none focus:border-gray-400 text-base text-gray-500"
-            />
-          </div>
+            {/* Text Input Area */}
+            <div className="flex-1">
+              <textarea
+                placeholder="Start typing here or paste any text you want to turn into lifelike speech"
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                className="w-full h-[calc(100vh-240px)] p-6 border rounded-2xl resize-none focus:outline-none focus:border-gray-400 text-base text-gray-500"
+              />
+            </div>
 
-          {/* Buttons */}
-          <div className="flex items-center justify-between mt-6 space-x-4">
-            <div className="flex space-x-4">
-              <Select
-                onValueChange={(value) => {
-                  const voice = voices.find((v) => v.voice_id === value);
+            {/* Buttons */}
+            <div className="flex items-center justify-between mt-6 space-x-4">
+              <div className="flex space-x-4">
+                <Select
+                  onValueChange={(value) => {
+                    const voice = voices.find((v) => v.voice_id === value);
                     handleSelectVoice(voice);
                     handlePlayPreview(voice);
-                }}
-                defaultValue={selectedVoice?.voice_id}
-              >
-                <SelectTrigger className="rounded-full px-4 py-2 border border-gray-200 hover:bg-gray-50 flex items-center">
-                  <SelectValue placeholder="Select From Library" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectLabel>Library</SelectLabel>
-                    {loading ? (
-                      <SelectItem value="loading">Loading...</SelectItem>
-                    ) : (
+                  }}
+                  defaultValue={selectedVoice?.voice_id}
+                >
+                  <SelectTrigger className="rounded-full px-4 py-2 border border-gray-200 hover:bg-gray-50 flex items-center">
+                    <SelectValue placeholder="Select From Library" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectLabel>Library</SelectLabel>
+                      {loading ? (
+                        <SelectItem value="loading">Loading...</SelectItem>
+                      ) : (
                         <>
                           {voices.map((voice) => (
-                        <SelectItem
-                          key={voice.voice_id}
-                          value={voice.voice_id}
-                        >
+                            <SelectItem
+                              key={voice.voice_id}
+                              value={voice.voice_id}
+                            >
                               <div className="flex items-center justify-between w-full">
                                 <div>
-                          <p className="uppercase">{voice.name}</p>
+                                  <p className="uppercase">{voice.name}</p>
                                 </div>
                               </div>
                             </SelectItem>
@@ -751,128 +758,143 @@ const TextAudio = () => {
                                   <p className="uppercase">{voice?.name}</p>
                                 </div>
                               </div>
-                        </SelectItem>
+                            </SelectItem>
                           ))}
                         </>
+                      )}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+                <input
+                  type="file"
+                  accept=".txt,.docx,.pdf"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                  id="file-upload"
+                />
+                <label
+                  htmlFor="file-upload"
+                  className="rounded-full px-4 py-2 border border-gray-200 hover:bg-gray-50 flex items-center cursor-pointer"
+                >
+                  <span className="text-sm whitespace-nowrap">
+                    {uploadLoading ? (
+                      <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
+                    ) : (
+                      "Upload your text"
                     )}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-              <input
-                type="file"
-                accept=".txt,.docx,.pdf"
-                onChange={handleFileUpload}
-                className="hidden"
-                id="file-upload"
-              />
-              <label
-                htmlFor="file-upload"
-                className="rounded-full px-4 py-2 border border-gray-200 hover:bg-gray-50 flex items-center cursor-pointer"
-              >
-                <span className="text-sm whitespace-nowrap">
-                  {uploadLoading ? (
-                    <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
-                  ) : (
-                    "Upload your text"
-                  )}
-                </span>
-              </label>
-            </div>
-            <div className="flex space-x-4">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger>
+                  </span>
+                </label>
+              </div>
+              <div className="flex space-x-4">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger>
                       <button
                         className="rounded-full p-2 bg-black text-white hover:opacity-90 flex items-center justify-center"
                         onClick={() => setShowCloneDialog(true)}
                       >
-                      <Mic className="w-5 h-5" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent>
+                        <Mic className="w-5 h-5" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>
                       <p>Clone your voice</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            <button
-              className="rounded-full px-6 py-2 bg-black text-white hover:bg-gray-800 flex items-center"
-              disabled={isLoading}
-              onClick={handleGenerateSpeech}
-            >
-              {isLoading ? (
-                <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
-              ) : (
-                <span className="text-sm">Generate speech</span>
-              )}
-            </button>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <button
+                  className="rounded-full px-6 py-2 bg-black text-white hover:bg-gray-800 flex items-center"
+                  disabled={isLoading}
+                  onClick={handleGenerateSpeech}
+                >
+                  {isLoading ? (
+                    <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
+                  ) : (
+                    <span className="text-sm">Generate speech</span>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Audio Files List - Right Side */}
-      <div className="w-96 bg-white rounded-2xl p-6 shadow-sm">
-        <div className="flex uppercase">
-          <h3 className="text-sm font-bold pb-2">Generated Audios</h3>
-        </div>
-
-        {fetchLoading ? (
-          <div className="flex justify-center items-center h-full">
-            <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-gray-900"></div>
+        {/* Audio Files List - Right Side */}
+        <div className="w-96 bg-white rounded-2xl p-6 shadow-sm">
+          <div className="flex uppercase">
+            <h3 className="text-sm font-bold pb-2">Generated Audios</h3>
           </div>
-        ) : (
-          <>
-            <div>
-              {userVoices.map((voice, index) => (
-                <div
-                  key={voice.voice_id}
-                  className="group flex items-center py-4 first:pt-0 last:pb-0"
-                >
-                  <audio
-                    ref={(el) => (audioRefs.current[index] = el)}
-                    src={voice.audio_url}
-                    onLoadedMetadata={(e) =>
-                      handleAudioLoadedMetadata(index, e.target)
-                    }
-                  />
+
+          {fetchLoading ? (
+            <div className="flex justify-center items-center h-full">
+              <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-gray-900"></div>
+            </div>
+          ) : (
+            <>
+              <div>
+                {userVoices.map((voice, index) => (
+                  <div
+                    key={voice.voice_id}
+                    className="group flex items-center py-4 first:pt-0 last:pb-0"
+                  >
+                    <audio
+                      ref={(el) => (audioRefs.current[index] = el)}
+                      src={voice.audio_url}
+                      onLoadedMetadata={(e) =>
+                        handleAudioLoadedMetadata(index, e.target)
+                      }
+                    />
 
                     {isPlaying[index] ? (
-                    <Pause
-                      className="w-5 h-5 text-gray-400 hover:text-gray-600 cursor-pointer"
-                      onClick={() => handlePlayPause(index)}
-                    />
-                  ) : (
-                    <Play
-                      className="w-5 h-5 text-gray-400 hover:text-gray-600 cursor-pointer"
-                      onClick={() => handlePlayPause(index)}
-                    />
-                  )}
+                      <Pause
+                        className="w-5 h-5 text-gray-400 hover:text-gray-600 cursor-pointer"
+                        onClick={() => handlePlayPause(index)}
+                      />
+                    ) : (
+                      <Play
+                        className="w-5 h-5 text-gray-400 hover:text-gray-600 cursor-pointer"
+                        onClick={() => handlePlayPause(index)}
+                      />
+                    )}
 
-                  <div className="ml-4 flex-1 min-w-0">
-                    {editingIndex === index ? (
-                      <input
-                        type="text"
-                        value={audioNames[index] || voice.file_name}
+                    <div className="ml-4 flex-1 min-w-0">
+                      {editingIndex === index ? (
+                        <input
+                          type="text"
+                          value={
+                            audioNames[index] !== undefined
+                              ? audioNames[index]
+                              : voice.file_name
+                          }
                           onChange={(e) =>
                             handleNameChange(index, e.target.value)
                           }
-                        onBlur={() => {
-                          handleNameUpdate(index, audioNames[index]);
-                          setEditingIndex(null);
-                        }}
-                        onKeyPress={(e) => handleNameKeyPress(index, e)}
-                        className="text-sm truncate border-b border-gray-300 focus:outline-none"
-                        autoFocus
-                      />
-                    ) : (
-                      <div
-                        className="text-sm truncate border-b border-transparent cursor-pointer"
-                        onDoubleClick={() => setEditingIndex(index)}
-                      >
-                        {audioNames[index] || voice.file_name}
-                      </div>
-                    )}
-                      
+                          onBlur={() => {
+                            handleNameUpdate(index, audioNames[index]);
+                            setEditingIndex(null);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              handleNameUpdate(index, audioNames[index]);
+                              setEditingIndex(null);
+                            } else if (e.key === "Escape") {
+                              e.preventDefault();
+                              setEditingIndex(null); // cancel editing
+                            }
+                          }}
+                          className="text-sm truncate border-b border-gray-300 focus:outline-none"
+                          autoFocus
+                        />
+                      ) : (
+                        <div
+                          className="text-sm truncate border-b border-transparent cursor-pointer"
+                          onDoubleClick={() => setEditingIndex(index)}
+                        >
+                          {audioNames[index] !== undefined
+                            ? audioNames[index]
+                            : voice.file_name}
+                        </div>
+                      )}
+
                       <div className="mt-2 h-1 w-full bg-gray-200 rounded-full overflow-hidden">
                         <div
                           className="h-full bg-black transition-all duration-100"
@@ -881,66 +903,66 @@ const TextAudio = () => {
                       </div>
 
                       <div className="text-xs text-gray-500 mt-1">
-                      {audioDurations[index]
-                          ? `${Math.floor(audioDurations[index] / 60)}:${Math.floor(
-                              audioDurations[index] % 60
-                            )
-                            .toString()
-                            .padStart(2, "0")}`
-                        : "Loading..."}
+                        {audioDurations[index]
+                          ? `${Math.floor(
+                              audioDurations[index] / 60
+                            )}:${Math.floor(audioDurations[index] % 60)
+                              .toString()
+                              .padStart(2, "0")}`
+                          : "Loading..."}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-4 ml-4">
+                      <Download
+                        className="w-5 h-5 text-gray-400 hover:text-gray-600 cursor-pointer"
+                        onClick={() =>
+                          handleDownload(
+                            voice.audio_url,
+                            `${audioNames[index] || voice.name}.mp3`
+                          )
+                        }
+                      />
+                      {editingIndex === index ? (
+                        <Check
+                          className="w-5 h-5 text-green-600 cursor-pointer"
+                          onClick={() => {
+                            handleNameUpdate(index, audioNames[index]);
+                            setEditingIndex(null);
+                          }}
+                        />
+                      ) : (
+                        <Edit3
+                          className={`w-5 h-5 cursor-pointer ${
+                            selectedVoice === voice
+                              ? "text-green-600"
+                              : "text-gray-400 hover:text-gray-600"
+                          }`}
+                          onClick={() => setEditingIndex(index)}
+                        />
+                      )}
                     </div>
                   </div>
+                ))}
+              </div>
 
-                  <div className="flex items-center space-x-4 ml-4">
-                    <Download
-                      className="w-5 h-5 text-gray-400 hover:text-gray-600 cursor-pointer"
-                      onClick={() =>
-                        handleDownload(
-                          voice.audio_url,
-                          `${audioNames[index] || voice.name}.mp3`
-                        )
-                      }
-                    />
-                    {editingIndex === index ? (
-                      <Check
-                        className="w-5 h-5 text-green-600 cursor-pointer"
-                        onClick={() => {
-                          handleNameUpdate(index, audioNames[index]);
-                          setEditingIndex(null);
-                        }}
-                      />
-                    ) : (
-                      <Edit3
-                        className={`w-5 h-5 cursor-pointer ${
-                          selectedVoice === voice
-                            ? "text-green-600"
-                            : "text-gray-400 hover:text-gray-600"
-                        }`}
-                        onClick={() => setEditingIndex(index)}
-                      />
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-4">
-              <label className="block text-sm font-medium text-gray-700">
-                Playback Speed
-              </label>
-              <Slider
-                min={0.5}
-                max={2}
-                step={0.1}
-                value={[playbackRate]}
-                onValueChange={(value) => setPlaybackRate(value[0])}
-              />
-              <div className="text-sm text-gray-500">{playbackRate}x</div>
-            </div>
-          </>
-        )}
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-gray-700">
+                  Playback Speed
+                </label>
+                <Slider
+                  min={0.5}
+                  max={2}
+                  step={0.1}
+                  value={[playbackRate]}
+                  onValueChange={(value) => setPlaybackRate(value[0])}
+                />
+                <div className="text-sm text-gray-500">{playbackRate}x</div>
+              </div>
+            </>
+          )}
+        </div>
       </div>
-    </div>
 
       {/* Voice Cloning Dialog */}
       {showCloneDialog && (
@@ -1015,10 +1037,10 @@ const TextAudio = () => {
                   Cancel
                 </button>
                 <button
-                  className="flex-1 bg-black text-white rounded-md py-2 hover:bg-gray-800"
+                  className="flex-1 bg-black flex justify-center items-center text-white rounded-md py-2 hover:bg-gray-800"
                   onClick={handleCloneVoice}
                   disabled={!selectedFile || !!fileError || cloneLoading}
-                > 
+                >
                   {cloneLoading ? (
                     <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
                   ) : (

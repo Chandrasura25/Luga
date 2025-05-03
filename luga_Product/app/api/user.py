@@ -192,7 +192,7 @@ async def create_user(user: User, background_tasks: BackgroundTasks):
         "verified": False,
         "verification_token": verification_token,
     }
-    verification_url = f"https://www.luga-ai.com/api/user/verify?token={verification_token}"
+    verification_url = f"https://api.luga-ai.com/api/user/verify?token={verification_token}"
     background_tasks.add_task(send_email, email, "Verify Your Email", f"{verification_url}")
 
     try:

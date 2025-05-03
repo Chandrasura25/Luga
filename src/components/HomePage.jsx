@@ -134,7 +134,7 @@ const HomePage = () => {
                 setIsProfileOpen(!isProfileOpen);
               }}
             >
-              <span>{userEmail || "Guest"}</span>
+              <span>{userEmail || "Sign Up"}</span>
               <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
                 <path
                   fillRule="evenodd"

@@ -7,7 +7,6 @@ import {
   Music,
   Video,
   CreditCard,
-  Sliders,
   Plus,
   Copy,
   CheckCircle, // Import the check circle icon for the copied state
@@ -23,12 +22,16 @@ import logo from "../assets/logo.jpeg";
 import Pricing from "./Pricing";
 const ChatbotInterface = () => {
   const [message, setMessage] = useState("");
-  const [selectedLevel, setSelectedLevel] = useState("OpenAI");
   const [isLevelOpen, setIsLevelOpen] = useState(false);
   const [activeView, setActiveView] = useState("chat");
   const [isLoading, setIsLoading] = useState(false);
   const { getUserEmail } = useAuth();
-  const levels = ["OpenAI", "Deepseek", "Grok"];
+  const [selectedLevel, setSelectedLevel] = useState("OpenAI");
+  const levels = [
+    { key: "OpenAI", label: "Intelligent" },
+    { key: "Deepseek", label: "Conversational" },
+    { key: "Grok", label: "Versatile" },
+  ];
   const [conversations, setConversations] = useState([]);
   const [activeConversation, setActiveConversation] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -106,10 +109,12 @@ const ChatbotInterface = () => {
     getConversations();
   }, []);
 
-  const handleLevelSelect = (level) => {
-    setSelectedLevel(level);
+  const handleLevelSelect = (levelKey) => {
+    setSelectedLevel(levelKey);
     setIsLevelOpen(false);
   };
+  const selectedLabel = levels.find(level => level.key === selectedLevel)?.label || selectedLevel;
+
   const sidebarItems = [
     {
       icon: FileText,
@@ -240,18 +245,6 @@ const ChatbotInterface = () => {
             </div>
           ))}
         </nav>
-
-        {/* User Profile */}
-        <div className="p-4 border-t">
-          <div className="flex items-center space-x-3 p-3 hover:bg-gray-50 rounded-lg cursor-pointer">
-            <User className="w-5 h-5" />
-            <span>Profile</span>
-          </div>
-          <div className="flex items-center space-x-3 p-3 hover:bg-gray-50 rounded-lg cursor-pointer">
-            <Sliders className="w-5 h-5" />
-            <span>Preferences</span>
-          </div>
-        </div>
       </div>
 
       {/* Main Content */}
@@ -269,7 +262,7 @@ const ChatbotInterface = () => {
                       className="flex items-center space-x-2 cursor-pointer p-2 rounded hover:bg-gray-50"
                       onClick={() => setIsLevelOpen(!isLevelOpen)}
                     >
-                      <span>{selectedLevel}</span>
+                      <span>{selectedLabel}</span>
                       <svg
                         className="w-4 h-4"
                         viewBox="0 0 20 20"
@@ -285,13 +278,13 @@ const ChatbotInterface = () => {
 
                     {isLevelOpen && (
                       <div className="absolute top-full left-0 mt-1 bg-white border rounded-lg shadow-lg py-1 min-w-[120px] z-10">
-                        {levels.map((level) => (
+                        {levels.map(({ key, label }) => (
                           <div
-                            key={level}
+                            key={key}
                             className="px-4 py-2 hover:bg-gray-50 cursor-pointer"
-                            onClick={() => handleLevelSelect(level)}
+                            onClick={() => handleLevelSelect(key)}
                           >
-                            {level}
+                            {label}
                           </div>
                         ))}
                       </div>
