@@ -1,3 +1,4 @@
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Response, BackgroundTasks
 from fastapi.responses import FileResponse
 from app.services.voice_service import ElevenLabsService
@@ -17,7 +18,7 @@ router = APIRouter()
 
 AUDIO_FILES_DIR = "./audio_files"
 os.makedirs(AUDIO_FILES_DIR, exist_ok=True) 
-
+timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 async def get_eleven_labs_service():
     return ElevenLabsService()
 
@@ -91,7 +92,8 @@ async def text_to_speech(
             background_tasks.add_task(send_notification, user["_id"], "You have less than 1 minute of audio quota left.")
 
         # Upload audio file
-        file_name = f"{user['_id']}_{request.voice_id}_{str(ObjectId())}.mp3"
+      
+        file_name = f"{timestamp}_{request.voice_id}_{str(ObjectId())}.mp3"
         audio_url = await upload_audio_to_cloudinary(audio_content, "audio_files", file_name)
 
         # Store audio record
@@ -172,9 +174,10 @@ async def upload_voice(
                     detail="Invalid file type. Please upload an audio file."
                 )
 
+            
             file_location = os.path.join(
                 AUDIO_FILES_DIR, 
-                f"{user['_id']}_{str(ObjectId())}.mp3"
+                f"{user['_id']}_{timestamp}_{file.filename}"  # Use filename and timestamp
             )
             
             try:
