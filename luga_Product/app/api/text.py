@@ -86,9 +86,6 @@ async def create_prompt(prompt: TextCreate):
             "messages": conversation["messages"],
             "timestamp": timestamp.isoformat()
         }
-        
-        if user.get("quota", {}).get("text_quota", 0) <= 10:
-            response["warning"] = "Your text quota is running low."
 
         return response
     
@@ -171,9 +168,6 @@ async def create_or_continue_conversation(conversation: ConversationCreate):
             "messages": conv["messages"],
             "timestamp": timestamp.isoformat()
         }
-
-        if user.get("quota", {}).get("text_quota", 0) <= 10:
-            response["warning"] = "Your text quota is running low."
 
         return response
 

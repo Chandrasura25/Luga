@@ -306,7 +306,7 @@ const TextAudio = () => {
         variant: "destructive",
         title: "Generation Error",
         description:
-          error.message || "Failed to generate speech. Please try again.",
+          error.response.data.detail || "Failed to generate speech. Please try again.",
       });
     } finally {
       setIsLoading(false);
@@ -625,6 +625,14 @@ const TextAudio = () => {
         });
         throw error;
       }
+      if (error.response?.status === 500) {
+        toast({
+          variant: "destructive",
+          title: "Upgrade",
+          description: error?.response?.data?.detail,
+        });
+        throw error;
+      }
 
       if (retryCount < maxRetries) {
         setRetryCount((prev) => prev + 1);
@@ -676,7 +684,6 @@ const TextAudio = () => {
         You are currently offline. Some features may be unavailable.
       </div>
     );
-
   return (
     <>
       <NetworkErrorBanner />
@@ -700,8 +707,8 @@ const TextAudio = () => {
                 <Select
                   onValueChange={(value) => {
                     const voice = voices.find((v) => v.voice_id === value);
+                    handlePlayPreview(voice)
                     handleSelectVoice(voice);
-                    handlePlayPreview(voice);
                   }}
                   defaultValue={selectedVoice?.voice_id}
                 >
@@ -723,6 +730,7 @@ const TextAudio = () => {
                               <div className="flex items-center justify-between w-full">
                                 <div>
                                   <p className="uppercase">{voice.name}</p>
+                                  <p>{voice?.labels?.gender}, {voice?.labels?.description}, {voice?.labels?.accent} accent</p>
                                 </div>
                               </div>
                             </SelectItem>
@@ -741,7 +749,7 @@ const TextAudio = () => {
                   defaultValue={selectedVoice?.voice_id}
                 >
                   <SelectTrigger className="rounded-full px-4 py-2 border border-gray-200 hover:bg-gray-50 flex items-center">
-                    <SelectValue placeholder="User Library" />
+                    <SelectValue placeholder="Clone Voice" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
