@@ -105,6 +105,7 @@ const TextToVideo = () => {
         );
         if (response.status === 200) {
           getAudioHistory();
+          setSelectedAudio(response.data?.audio_id);
           toast({
             description: "Audio uploaded successfully!",
           });
@@ -144,6 +145,7 @@ const TextToVideo = () => {
         );
         if (response.status === 200) {
           getVideoHistory();
+          setSelectedVideo(response.data?.video_id);
           toast({
             description: "Video uploaded successfully!",
           });
@@ -215,8 +217,8 @@ const TextToVideo = () => {
   };
   const getJobInfo = async (user_id, video_id) => {
     try {
-      setLoadingJobs(prev => ({ ...prev, [video_id]: true }));
-      
+      setLoadingJobs((prev) => ({ ...prev, [video_id]: true }));
+
       const response = await axiosPrivate.get(
         `/video/job/${user_id}/${video_id}`
       );
@@ -242,7 +244,7 @@ const TextToVideo = () => {
         });
       }
     } finally {
-      setLoadingJobs(prev => ({ ...prev, [video_id]: false }));
+      setLoadingJobs((prev) => ({ ...prev, [video_id]: false }));
     }
   };
   // Separate completed and pending jobs

@@ -126,34 +126,52 @@ const HomePage = () => {
           >
             About
           </Link>
-
-          <div className="relative">
-            <div
-              className="flex items-center space-x-2 cursor-pointer p-2 rounded hover:bg-gray-50"
-              onClick={() => {
-                setIsProfileOpen(!isProfileOpen);
-              }}
-            >
-              <span>{userEmail || "Sign Up"}</span>
-              <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
-                <path
-                  fillRule="evenodd"
-                  d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            </div>
-            {isProfileOpen && (
-              <div className="absolute top-full left-0 mt-1 bg-white border rounded-lg shadow-lg py-1 min-w-[120px] z-10">
+          {userEmail ? (
+            <>
+              <div className="relative">
                 <div
-                  className="px-4 py-2 hover:bg-gray-50 cursor-pointer"
-                  onClick={logOut}
+                  className="flex items-center space-x-2 cursor-pointer p-2 rounded hover:bg-gray-50"
+                  onClick={() => {
+                    setIsProfileOpen(!isProfileOpen);
+                  }}
                 >
-                  Log out
+                  <span>{userEmail}</span>
+                  <svg
+                    className="w-4 h-4"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
                 </div>
+                {isProfileOpen && (
+                  <div className="absolute top-full left-0 mt-1 bg-white border rounded-lg shadow-lg py-1 min-w-[120px] z-10">
+                    <div
+                      className="px-4 py-2 hover:bg-gray-50 cursor-pointer"
+                      onClick={logOut}
+                    >
+                      Log out
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            </>
+          ) : (
+            <>
+              <div
+                className="relative bg-blue-300 px-4 text-sm py-2 text-white rounded-full"
+                onClick={() => {
+                  navigate("/login");
+                }}
+              >
+                <button>Login</button>
+              </div>
+            </>
+          )}
         </div>
       </nav>
 
@@ -181,7 +199,7 @@ const HomePage = () => {
                   navigate("/register");
                 }
               }}
-              className="px-6 py-3 text-base font-medium text-white bg-black rounded-full hover:bg-gray-800 transition-colors inline-flex items-center space-x-2"
+              className="px-6 cursor-pointer py-3 text-base font-medium text-white bg-black rounded-full hover:bg-gray-800 transition-colors inline-flex items-center space-x-2"
             >
               <svg
                 className="w-5 h-5"
