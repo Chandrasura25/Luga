@@ -36,11 +36,6 @@ const TextToVideo = () => {
       setGeneratedAudios(response.data);
     } catch (error) {
       console.error("Error fetching generated audios:", error);
-      toast({
-        variant: "destructive",
-        title: "Error fetching generated audios",
-        description: "Failed to fetch generated audios. Please try again.",
-      });
     } finally {
       setGeneratedAudioLoading(false);
     }
