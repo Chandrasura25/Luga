@@ -54,11 +54,7 @@ const Profile = () => {
         google_id: response.data.google_id,
       });
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to fetch profile information",
-        variant: "destructive",
-      });
+      console.log(error)
     }
   };
 
