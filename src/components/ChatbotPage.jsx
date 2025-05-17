@@ -11,6 +11,7 @@ import {
   Copy,
   CheckCircle,
   Brain,
+  LogOut,
 } from "lucide-react";
 import Markdown from "react-markdown";
 import TextAudio from "./TextAudio";
@@ -22,13 +23,14 @@ import { useAuth } from "./auth";
 import { toast } from "react-toastify";
 import logo from "../assets/logo.jpeg";
 import Pricing from "./Pricing";
+import { useNavigate } from "react-router-dom";
 
 const ChatbotInterface = () => {
   const [message, setMessage] = useState("");
   const [isLevelOpen, setIsLevelOpen] = useState(false);
   const [activeView, setActiveView] = useState("chat");
   const [isLoading, setIsLoading] = useState(false);
-  const { getUserEmail } = useAuth();
+  const { getUserEmail, logout } = useAuth();
   const [selectedLevel, setSelectedLevel] = useState("OpenAI");
   const levels = [
     { key: "OpenAI", label: "Intelligent" },
@@ -38,7 +40,8 @@ const ChatbotInterface = () => {
   const [conversations, setConversations] = useState([]);
   const [activeConversation, setActiveConversation] = useState(null);
   const [messages, setMessages] = useState([]);
-  const [copiedMessageIndex, setCopiedMessageIndex] = useState(null); // Track which message was copied
+  const [copiedMessageIndex, setCopiedMessageIndex] = useState(null); 
+  const navigate = useNavigate()
 
   const groupConversationsByDate = (conversations) => {
     const today = new Date();
@@ -156,6 +159,12 @@ const ChatbotInterface = () => {
       onClick: () => setActiveView("profile"),
       active: activeView === "profile",
     },
+    {
+      icon: LogOut,
+      label: "Log Out",
+      onClick: () => { logout(); navigate('/'); },
+      active: activeView === "",
+    },
   ];
 
   const startNewConversation = () => {
@@ -221,11 +230,11 @@ const ChatbotInterface = () => {
   return (
     <div className="flex h-screen bg-gray-50">
       <div className="w-64 border-r flex flex-col bg-white">
-        <div className="p-4 border-b">
+        <div className="p-4 border-b flex items-center justify-center">
           <img
             src={logo}
             alt="logo"
-            style={{ height: "50px", width: "auto" }}
+            style={{ height: "60px", width: "auto" }}
           />
         </div>
 
