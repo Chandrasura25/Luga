@@ -9,8 +9,10 @@ import {
   CreditCard,
   Plus,
   Copy,
-  CheckCircle, // Import the check circle icon for the copied state
+  CheckCircle,
+  Brain,
 } from "lucide-react";
+import Markdown from "react-markdown";
 import TextAudio from "./TextAudio";
 import AudioVideo from "./AudioVideo";
 import ActivityPage from "./Activity";
@@ -20,6 +22,7 @@ import { useAuth } from "./auth";
 import { toast } from "react-toastify";
 import logo from "../assets/logo.jpeg";
 import Pricing from "./Pricing";
+
 const ChatbotInterface = () => {
   const [message, setMessage] = useState("");
   const [isLevelOpen, setIsLevelOpen] = useState(false);
@@ -35,7 +38,7 @@ const ChatbotInterface = () => {
   const [conversations, setConversations] = useState([]);
   const [activeConversation, setActiveConversation] = useState(null);
   const [messages, setMessages] = useState([]);
-  const [copyIcon, setCopyIcon] = useState(Copy); // State to manage the copy icon
+  const [copiedMessageIndex, setCopiedMessageIndex] = useState(null); // Track which message was copied
 
   const groupConversationsByDate = (conversations) => {
     const today = new Date();
@@ -77,7 +80,7 @@ const ChatbotInterface = () => {
 
     return groups;
   };
-  // Fetch user's conversations
+
   const getConversations = async () => {
     try {
       const userEmail = getUserEmail();
@@ -90,7 +93,6 @@ const ChatbotInterface = () => {
     }
   };
 
-  // Fetch conversation messages
   const getConversation = async (conversationId) => {
     try {
       const userEmail = getUserEmail();
@@ -113,7 +115,9 @@ const ChatbotInterface = () => {
     setSelectedLevel(levelKey);
     setIsLevelOpen(false);
   };
-  const selectedLabel = levels.find(level => level.key === selectedLevel)?.label || selectedLevel;
+
+  const selectedLabel =
+    levels.find((level) => level.key === selectedLevel)?.label || selectedLevel;
 
   const sidebarItems = [
     {
@@ -153,6 +157,7 @@ const ChatbotInterface = () => {
       active: activeView === "profile",
     },
   ];
+
   const startNewConversation = () => {
     setActiveConversation(null);
     setMessages([]);
@@ -171,7 +176,6 @@ const ChatbotInterface = () => {
         level: selectedLevel,
       };
 
-      // Add user message to UI immediately
       setMessages((prev) => [
         ...prev,
         {
@@ -184,7 +188,6 @@ const ChatbotInterface = () => {
 
       const response = await axios.post("/text/generate", prompt);
 
-      // Update messages with the complete conversation
       setMessages(response.data.messages);
       setActiveConversation({
         ...response.data,
@@ -192,7 +195,6 @@ const ChatbotInterface = () => {
         title: response.data.title,
       });
 
-      // Refresh conversations list to show new conversation
       getConversations();
 
       if (response.data.warning) {
@@ -206,22 +208,19 @@ const ChatbotInterface = () => {
     }
   };
 
-  const copyToClipboard = (text) => {
+  const copyToClipboard = (text, index) => {
     navigator.clipboard.writeText(text);
     toast.success("Copied to clipboard!");
-    setCopyIcon(CheckCircle); // Change icon to check circle
+    setCopiedMessageIndex(index); // Set the index of the copied message
 
-    // Change back to copy icon after 10 seconds
     setTimeout(() => {
-      setCopyIcon(Copy);
+      setCopiedMessageIndex(null); // Reset the copied message index
     }, 10000);
   };
 
   return (
     <div className="flex h-screen bg-gray-50">
-      {/* Left Sidebar */}
       <div className="w-64 border-r flex flex-col bg-white">
-        {/* Logo */}
         <div className="p-4 border-b">
           <img
             src={logo}
@@ -230,7 +229,6 @@ const ChatbotInterface = () => {
           />
         </div>
 
-        {/* Main Navigation */}
         <nav className="flex-1 p-4">
           {sidebarItems.map((item, index) => (
             <div
@@ -247,16 +245,12 @@ const ChatbotInterface = () => {
         </nav>
       </div>
 
-      {/* Main Content */}
       <div className="flex-1 flex p-4 space-x-4">
         {activeView === "chat" ? (
           <>
-            {/* Chat Area */}
             <div className="flex-1 flex flex-col bg-white rounded-2xl overflow-hidden shadow-sm">
-              {/* Top Bar with Dropdowns */}
               <div className="p-4 border-b flex items-center justify-between">
                 <div className="flex items-center space-x-4">
-                  {/* Level Dropdown */}
                   <div className="relative">
                     <div
                       className="flex items-center space-x-2 cursor-pointer p-2 rounded hover:bg-gray-50"
@@ -298,43 +292,51 @@ const ChatbotInterface = () => {
                 )}
               </div>
 
-              {/* Messages Area */}
               <div className="flex-1 overflow-y-auto p-4">
                 {messages.map((msg, index) => (
-                  <div key={index} className="mb-4">
-                    <div className="flex items-start space-x-3 mb-4">
-                      <div className="w-8 h-8 rounded-full bg-gray-200" />
-                      <div className="flex-1">
-                        <div className="bg-gray-100 rounded-2xl p-4 inline-block max-w-3xl">
-                          <p className="text-gray-900">{msg.prompt}</p>
+                  <div key={index} className="mb-4 ">
+                    <div className="flex justify-end">
+                      <div className="flex items-center space-x-3 mb-4">
+                        <div className="w-8 h-8 rounded-full flex justify-center items-center bg-gray-200">
+                          <User />
+                        </div>
+                        <div className="flex-1">
+                          <div className="bg-gray-100 rounded-2xl p-4 inline-block max-w-3xl">
+                            <p className="text-gray-900">{msg.prompt}</p>
+                          </div>
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-start space-x-3">
-                      <div className="w-8 h-8 rounded-full bg-blue-200" />
-                      <div className="flex-1">
-                        <div className="inline-block max-w-3xl relative">
-                          <p className="text-gray-900 whitespace-pre-line">
-                            {msg.response}
-                          </p>
-                          <button
-                            onClick={() => copyToClipboard(msg.response)}
-                            className="absolute right-2 top-0 transform -translate-y-1/2 p-1 rounded hover:bg-gray-200 transition"
-                          >
-                            {copyIcon === CheckCircle ? (
-                              <CheckCircle className="w-4 h-4 text-green-500" />
-                            ) : (
-                              <Copy className="w-4 h-4" />
-                            )}
-                          </button>
+                    {msg.response !== "" && (
+                      <>
+                        <div className="flex items-start space-x-3">
+                          <div className="w-8 h-8 rounded-full bg-blue-200 flex justify-center items-center">
+                            <Brain className="w-5 h-5 text-white" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="inline-block relative">
+                              <Markdown>
+                                {msg.response}
+                              </Markdown>
+                              <button
+                                onClick={() => copyToClipboard(msg.response, index)}
+                                className="mt-3 p-1 rounded hover:bg-gray-200 transition"
+                              >
+                                {copiedMessageIndex === index ? (
+                                  <CheckCircle className="w-4 h-4 text-green-500" />
+                                ) : (
+                                  <Copy className="w-4 h-4 text-blue-800" />
+                                )}
+                              </button>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
+                      </>
+                    )}
                   </div>
                 ))}
               </div>
 
-              {/* Input Area */}
               <div className="p-4 border-t">
                 <div className="relative">
                   <div className="flex flex-col">
@@ -370,7 +372,6 @@ const ChatbotInterface = () => {
               </div>
             </div>
 
-            {/* Right Sidebar - Conversations */}
             <div className="w-64 bg-white rounded-2xl p-4 shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-semibold">Conversations</h2>
