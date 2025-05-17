@@ -66,7 +66,7 @@ const PasswordReset = () => {
           <div className="relative">
             <Lock className="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
             <input
-              type="password"
+              type={showPassword ? "text" : "password"}
               placeholder="Enter your password"
               value={password}
               className="w-full pl-10 p-3 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -84,12 +84,12 @@ const PasswordReset = () => {
           <div className="relative">
             <Lock className="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
             <input
-              type="password"
+              type={showConfirmPassword ? "text" : "password"}
               placeholder="Confirm your password"
               className="w-full pl-10 p-3 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-                required
+              required
             />
             <button
               type="button"
