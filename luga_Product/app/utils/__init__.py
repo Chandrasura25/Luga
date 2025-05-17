@@ -42,7 +42,7 @@ def verification_email_content(url):
                     display: inline-block;
                     padding: 12px 25px;
                     background-color: #007bff;
-                    color: #ffffff;
+                    color: #ffffff !important;
                     text-decoration: none;
                     border-radius: 5px;
                     font-weight: bold;
@@ -60,7 +60,7 @@ def verification_email_content(url):
             <div class="container">
                 <div class="email-wrapper">
                     <div class="header">
-                        <img src="https://luga.s3.ap-northeast-1.amazonaws.com/luga.png" alt="LugaAI Logo">
+                      <img src="https://luga.s3.ap-northeast-1.amazonaws.com/luga.png" alt="Luga Logo" width="200" />
                     </div>
                     <div class="content">
                         <p>Hi there,</p>
@@ -129,7 +129,7 @@ def forgot_password_email_content(code):
                 <div class="container">
                     <div class="email-container">
                         <div class="logo">
-                            <img src="https://luga.s3.ap-northeast-1.amazonaws.com/luga.png" alt="App Logo">
+                          <img src="https://luga.s3.ap-northeast-1.amazonaws.com/luga.png" alt="Luga Logo" width="200" />
                         </div>
                         <div class="content">
                             <p>Hello,</p>
