@@ -78,7 +78,7 @@ const ProfileAvatar = ({ profileImage, setUser }: ProfileAvatarProps) => {
   };
   return (
     <div className="flex items-center gap-4">
-      <Avatar className="h-16 w-16 bg-purple-500 text-white text-xl">
+      <Avatar className="h-16 w-16 bg-blue-500 text-white text-xl">
         <AvatarImage src={profileImage || ""} alt="Profile" />
         <AvatarFallback>
           {getUserEmail()?.charAt(0).toUpperCase() || "U"}
